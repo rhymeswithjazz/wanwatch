@@ -19,13 +19,10 @@ services:
       - APP_URL=${APP_URL}
       - CHECK_INTERVAL_SECONDS=${CHECK_INTERVAL_SECONDS:-300}
     volumes:
-      - wan-monitor-data:/app/data
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-volumes:
-  wan-monitor-data:
