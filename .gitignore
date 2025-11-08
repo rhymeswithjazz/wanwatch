@@ -45,3 +45,4 @@ prisma/*.db-journal
 .idea
 
 /app/generated/prisma
+*.tar.gz
