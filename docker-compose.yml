@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  wan-monitor:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=file:/app/data/wan-monitor.db
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURE=${SMTP_SECURE}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_TO=${EMAIL_TO}
+      - APP_URL=${APP_URL}
+      - CHECK_INTERVAL_SECONDS=${CHECK_INTERVAL_SECONDS:-300}
+    volumes:
+      - wan-monitor-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  wan-monitor-data:

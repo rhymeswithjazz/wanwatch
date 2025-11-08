@@ -1,0 +1,45 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+}
+
+model ConnectionCheck {
+  id          Int      @id @default(autoincrement())
+  timestamp   DateTime @default(now())
+  isConnected Boolean
+  latencyMs   Int?
+  target      String
+}
+
+model Outage {
+  id          Int       @id @default(autoincrement())
+  startTime   DateTime
+  endTime     DateTime?
+  durationSec Int?
+  isResolved  Boolean   @default(false)
+  checksCount Int       @default(0)
+  emailSent   Boolean   @default(false)
+}
+
+model SystemLog {
+  id        Int      @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  level     String
+  message   String
+  metadata  String?
+}
