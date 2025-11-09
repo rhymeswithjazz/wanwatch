@@ -2,6 +2,10 @@
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface Stats {
   totalOutages: number;
@@ -130,9 +134,9 @@ export default function StatsDisplay() {
     }));
   }, [filteredChecks]);
 
-  if (loading) return <div style={{ padding: '20px' }}>Loading...</div>;
+  if (loading) return <div className="p-5">Loading...</div>;
   if (!stats) return (
-    <div style={{ padding: '20px', color: '#dc2626' }}>
+    <div className="p-5 text-destructive">
       Unable to load dashboard data. Please check the console for errors or try refreshing the page.
     </div>
   );
@@ -187,385 +191,291 @@ export default function StatsDisplay() {
     }
   };
 
-  const cardStyle = {
-    background: 'white',
-    padding: '24px',
-    borderRadius: '8px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-    marginBottom: '16px'
-  };
-
-  const gridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '16px',
-    marginBottom: '32px'
-  };
-
   return (
-    <div>
+    <div className="space-y-4">
       {/* Status Cards */}
-      <div style={gridStyle}>
-        <div style={cardStyle}>
-          <h3 style={{ color: '#666', fontSize: '14px', margin: '0 0 8px 0' }}>Status</h3>
-          <p style={{
-            fontSize: '24px',
-            fontWeight: 'bold',
-            margin: 0,
-            color: stats.activeOutage ? '#dc2626' : '#16a34a'
-          }}>
-            {stats.activeOutage ? 'OFFLINE' : 'ONLINE'}
-          </p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Status</CardDescription>
+            <CardTitle className={stats.activeOutage ? 'text-destructive' : 'text-green-600'}>
+              {stats.activeOutage ? 'OFFLINE' : 'ONLINE'}
+            </CardTitle>
+          </CardHeader>
+        </Card>
 
-        <div style={cardStyle}>
-          <h3 style={{ color: '#666', fontSize: '14px', margin: '0 0 8px 0' }}>Total Outages</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>{stats.totalOutages}</p>
-        </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total Outages</CardDescription>
+            <CardTitle>{stats.totalOutages}</CardTitle>
+          </CardHeader>
+        </Card>
 
-        <div style={cardStyle}>
-          <h3 style={{ color: '#666', fontSize: '14px', margin: '0 0 8px 0' }}>Total Downtime</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>
-            {formatDuration(stats.totalDowntimeSec)}
-          </p>
-        </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total Downtime</CardDescription>
+            <CardTitle>{formatDuration(stats.totalDowntimeSec)}</CardTitle>
+          </CardHeader>
+        </Card>
 
-        <div style={cardStyle}>
-          <h3 style={{ color: '#666', fontSize: '14px', margin: '0 0 8px 0' }}>Avg Outage</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>
-            {formatDuration(stats.avgOutageDurationSec)}
-          </p>
-        </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Avg Outage</CardDescription>
+            <CardTitle>{formatDuration(stats.avgOutageDurationSec)}</CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
       {/* Connection History Chart */}
-      <div style={{ ...cardStyle, position: 'relative' }}>
+      <Card className="relative">
         {isPending && (
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(255, 255, 255, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10,
-            borderRadius: '8px'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                border: '4px solid #f3f4f6',
-                borderTop: '4px solid #2563eb',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-                margin: '0 auto 12px'
-              }}></div>
-              <div style={{ color: '#374151', fontSize: '14px' }}>Loading data...</div>
+          <div className="absolute inset-0 bg-background/80 dark:bg-background/80 flex items-center justify-center z-10 rounded-lg">
+            <div className="text-center">
+              <div className="w-10 h-10 border-4 border-muted border-t-primary rounded-full animate-spin mx-auto mb-3"></div>
+              <div className="text-sm text-muted-foreground">Loading data...</div>
             </div>
           </div>
         )}
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
-            Recent Connection Status
-          </h2>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {(['5m', '15m', '1h', '6h', '24h', 'all'] as TimePeriod[]).map(period => (
-              <button
-                key={period}
-                onClick={() => handleTimePeriodChange(period)}
-                disabled={isPending}
-                style={{
-                  padding: '6px 12px',
-                  background: timePeriod === period ? '#2563eb' : '#f3f4f6',
-                  color: timePeriod === period ? 'white' : '#374151',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: isPending ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: timePeriod === period ? '600' : '400',
-                  transition: 'all 0.2s',
-                  opacity: isPending ? 0.6 : 1
-                }}
-              >
-                {timePeriodLabels[period]}
-              </button>
-            ))}
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <CardTitle>Recent Connection Status</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              {(['5m', '15m', '1h', '6h', '24h', 'all'] as TimePeriod[]).map(period => (
+                <Button
+                  key={period}
+                  onClick={() => handleTimePeriodChange(period)}
+                  disabled={isPending}
+                  variant={timePeriod === period ? 'default' : 'outline'}
+                  size="sm"
+                >
+                  {timePeriodLabels[period]}
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', fontSize: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '16px', height: '16px', background: '#16a34a', borderRadius: '2px' }}></div>
-            <span>Connected</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '16px', height: '16px', background: '#dc2626', borderRadius: '2px' }}></div>
-            <span>Disconnected</span>
-          </div>
-          <div style={{ color: '#6b7280', fontSize: '14px', marginLeft: 'auto' }}>
-            {(() => {
-              const originalCount = timePeriod === 'all'
-                ? stats.recentChecks.length
-                : stats.recentChecks.filter(item => {
-                    const now = new Date();
-                    const cutoffTime = new Date();
-                    switch (timePeriod) {
-                      case '5m': cutoffTime.setMinutes(now.getMinutes() - 5); break;
-                      case '15m': cutoffTime.setMinutes(now.getMinutes() - 15); break;
-                      case '1h': cutoffTime.setHours(now.getHours() - 1); break;
-                      case '6h': cutoffTime.setHours(now.getHours() - 6); break;
-                      case '24h': cutoffTime.setHours(now.getHours() - 24); break;
-                    }
-                    return new Date(item.timestamp) >= cutoffTime;
-                  }).length;
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4 mb-3 text-sm flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-green-600 rounded-sm"></div>
+              <span>Connected</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-destructive rounded-sm"></div>
+              <span>Disconnected</span>
+            </div>
+            <div className="text-muted-foreground text-sm ml-auto">
+              {(() => {
+                const originalCount = timePeriod === 'all'
+                  ? stats.recentChecks.length
+                  : stats.recentChecks.filter(item => {
+                      const now = new Date();
+                      const cutoffTime = new Date();
+                      switch (timePeriod) {
+                        case '5m': cutoffTime.setMinutes(now.getMinutes() - 5); break;
+                        case '15m': cutoffTime.setMinutes(now.getMinutes() - 15); break;
+                        case '1h': cutoffTime.setHours(now.getHours() - 1); break;
+                        case '6h': cutoffTime.setHours(now.getHours() - 6); break;
+                        case '24h': cutoffTime.setHours(now.getHours() - 24); break;
+                      }
+                      return new Date(item.timestamp) >= cutoffTime;
+                    }).length;
 
-              return originalCount > 500
-                ? `Showing ${filteredChecks.length} of ${originalCount.toLocaleString()} checks (downsampled)`
-                : `Showing ${filteredChecks.length} checks`;
-            })()}
+                return originalCount > 500
+                  ? `Showing ${filteredChecks.length} of ${originalCount.toLocaleString()} checks (downsampled)`
+                  : `Showing ${filteredChecks.length} checks`;
+              })()}
+            </div>
           </div>
-        </div>
-        {filteredChecks.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px', color: '#6b7280' }}>
-            No data available for this time period
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={300} key={`${timePeriod}-${filteredChecks.length}`}>
-            <BarChart
-              data={chartData}
-              barSize={dynamicBarSize}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="timestamp"
-                tickFormatter={formatXAxisTime}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-              />
-              <YAxis
-                domain={[0, 1]}
-                ticks={[0, 1]}
-                tickFormatter={(value) => value ? 'Online' : 'Offline'}
-              />
-              <Tooltip
-                labelFormatter={(time) => new Date(time).toLocaleString()}
-                formatter={(value: any, name: any, props: any) => {
-                  const isConnected = props.payload.isConnected;
-                  return [isConnected ? 'Connected' : 'Disconnected', 'Status'];
-                }}
-              />
-              <Bar dataKey="status" radius={[4, 4, 0, 0]}>
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.isConnected ? '#16a34a' : '#dc2626'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+          {filteredChecks.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              No data available for this time period
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300} key={`${timePeriod}-${filteredChecks.length}`}>
+              <BarChart
+                data={chartData}
+                barSize={dynamicBarSize}
+              >
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis
+                  dataKey="timestamp"
+                  tickFormatter={formatXAxisTime}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  className="text-xs"
+                />
+                <YAxis
+                  domain={[0, 1]}
+                  ticks={[0, 1]}
+                  tickFormatter={(value) => value ? 'Online' : 'Offline'}
+                  className="text-xs"
+                />
+                <Tooltip
+                  labelFormatter={(time) => new Date(time).toLocaleString()}
+                  formatter={(value: any, name: any, props: any) => {
+                    const isConnected = props.payload.isConnected;
+                    return [isConnected ? 'Connected' : 'Disconnected', 'Status'];
+                  }}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    borderColor: 'hsl(var(--border))',
+                    color: 'hsl(var(--popover-foreground))'
+                  }}
+                />
+                <Bar dataKey="status" radius={[4, 4, 0, 0]}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.isConnected ? '#16a34a' : 'hsl(var(--destructive))'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Outage History Table */}
-      <div style={cardStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
-            Outage History
-          </h2>
-          <div style={{ color: '#6b7280', fontSize: '14px' }}>
-            {stats.outageHistory.length} total outages
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>Outage History</CardTitle>
+            <CardDescription>{stats.outageHistory.length} total outages</CardDescription>
           </div>
-        </div>
+        </CardHeader>
+        <CardContent>
+          {stats.outageHistory.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              No outages recorded
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Start Time</TableHead>
+                    <TableHead>End Time</TableHead>
+                    <TableHead>Duration</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const totalPages = Math.ceil(stats.outageHistory.length / itemsPerPage);
+                    const startIndex = (currentPage - 1) * itemsPerPage;
+                    const endIndex = startIndex + itemsPerPage;
+                    const paginatedOutages = stats.outageHistory.slice(startIndex, endIndex);
 
-        {stats.outageHistory.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
-            No outages recorded
-          </div>
-        ) : (
-          <>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #e5e7eb', background: '#f9fafb' }}>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Start Time</th>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: '600', color: '#374151' }}>End Time</th>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Duration</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const totalPages = Math.ceil(stats.outageHistory.length / itemsPerPage);
-                  const startIndex = (currentPage - 1) * itemsPerPage;
-                  const endIndex = startIndex + itemsPerPage;
-                  const paginatedOutages = stats.outageHistory.slice(startIndex, endIndex);
+                    return paginatedOutages.map((outage, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>
+                          {new Date(outage.startTime).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(outage.endTime).toLocaleString()}
+                        </TableCell>
+                        <TableCell>{formatDuration(outage.durationSec)}</TableCell>
+                      </TableRow>
+                    ));
+                  })()}
+                </TableBody>
+              </Table>
 
-                  return paginatedOutages.map((outage, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                      <td style={{ padding: '12px 8px' }}>
-                        {new Date(outage.startTime).toLocaleString()}
-                      </td>
-                      <td style={{ padding: '12px 8px' }}>
-                        {new Date(outage.endTime).toLocaleString()}
-                      </td>
-                      <td style={{ padding: '12px 8px' }}>{formatDuration(outage.durationSec)}</td>
-                    </tr>
-                  ));
-                })()}
-              </tbody>
-            </table>
+              {/* Pagination Controls */}
+              {(() => {
+                const totalPages = Math.ceil(stats.outageHistory.length / itemsPerPage);
 
-            {/* Pagination Controls */}
-            {(() => {
-              const totalPages = Math.ceil(stats.outageHistory.length / itemsPerPage);
+                if (totalPages <= 1) return null;
 
-              if (totalPages <= 1) return null;
+                const pageNumbers = [];
+                const maxVisiblePages = 7;
 
-              const pageNumbers = [];
-              const maxVisiblePages = 7;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
-              let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-              let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                if (endPage - startPage < maxVisiblePages - 1) {
+                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
 
-              if (endPage - startPage < maxVisiblePages - 1) {
-                startPage = Math.max(1, endPage - maxVisiblePages + 1);
-              }
+                for (let i = startPage; i <= endPage; i++) {
+                  pageNumbers.push(i);
+                }
 
-              for (let i = startPage; i <= endPage; i++) {
-                pageNumbers.push(i);
-              }
+                return (
+                  <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, stats.outageHistory.length)} of {stats.outageHistory.length}
+                    </div>
 
-              return (
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginTop: '16px',
-                  paddingTop: '16px',
-                  borderTop: '1px solid #e5e7eb'
-                }}>
-                  <div style={{ color: '#6b7280', fontSize: '14px' }}>
-                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, stats.outageHistory.length)} of {stats.outageHistory.length}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    {/* Previous Button */}
-                    <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      style={{
-                        padding: '6px 12px',
-                        background: currentPage === 1 ? '#f3f4f6' : 'white',
-                        color: currentPage === 1 ? '#9ca3af' : '#374151',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '4px',
-                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500'
-                      }}
-                    >
-                      Previous
-                    </button>
-
-                    {/* First page */}
-                    {startPage > 1 && (
-                      <>
-                        <button
-                          onClick={() => setCurrentPage(1)}
-                          style={{
-                            padding: '6px 12px',
-                            background: 'white',
-                            color: '#374151',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            minWidth: '40px'
-                          }}
-                        >
-                          1
-                        </button>
-                        {startPage > 2 && (
-                          <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>
-                        )}
-                      </>
-                    )}
-
-                    {/* Page Numbers */}
-                    {pageNumbers.map(page => (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        style={{
-                          padding: '6px 12px',
-                          background: currentPage === page ? '#2563eb' : 'white',
-                          color: currentPage === page ? 'white' : '#374151',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          fontWeight: currentPage === page ? '600' : '400',
-                          minWidth: '40px'
-                        }}
+                    <div className="flex gap-1">
+                      <Button
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                        variant="outline"
+                        size="sm"
                       >
-                        {page}
-                      </button>
-                    ))}
+                        Previous
+                      </Button>
 
-                    {/* Last page */}
-                    {endPage < totalPages && (
-                      <>
-                        {endPage < totalPages - 1 && (
-                          <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>
-                        )}
-                        <button
-                          onClick={() => setCurrentPage(totalPages)}
-                          style={{
-                            padding: '6px 12px',
-                            background: 'white',
-                            color: '#374151',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            minWidth: '40px'
-                          }}
+                      {startPage > 1 && (
+                        <>
+                          <Button
+                            onClick={() => setCurrentPage(1)}
+                            variant="outline"
+                            size="sm"
+                            className="min-w-[40px]"
+                          >
+                            1
+                          </Button>
+                          {startPage > 2 && (
+                            <span className="px-1 py-1.5 text-muted-foreground">...</span>
+                          )}
+                        </>
+                      )}
+
+                      {pageNumbers.map(page => (
+                        <Button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          variant={currentPage === page ? 'default' : 'outline'}
+                          size="sm"
+                          className="min-w-[40px]"
                         >
-                          {totalPages}
-                        </button>
-                      </>
-                    )}
+                          {page}
+                        </Button>
+                      ))}
 
-                    {/* Next Button */}
-                    <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      style={{
-                        padding: '6px 12px',
-                        background: currentPage === totalPages ? '#f3f4f6' : 'white',
-                        color: currentPage === totalPages ? '#9ca3af' : '#374151',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '4px',
-                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500'
-                      }}
-                    >
-                      Next
-                    </button>
+                      {endPage < totalPages && (
+                        <>
+                          {endPage < totalPages - 1 && (
+                            <span className="px-1 py-1.5 text-muted-foreground">...</span>
+                          )}
+                          <Button
+                            onClick={() => setCurrentPage(totalPages)}
+                            variant="outline"
+                            size="sm"
+                            className="min-w-[40px]"
+                          >
+                            {totalPages}
+                          </Button>
+                        </>
+                      )}
+
+                      <Button
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                        variant="outline"
+                        size="sm"
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
-          </>
-        )}
-      </div>
+                );
+              })()}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
