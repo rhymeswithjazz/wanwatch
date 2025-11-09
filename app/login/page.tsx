@@ -57,7 +57,7 @@ export default function LoginPage() {
           marginBottom: '24px',
           textAlign: 'center'
         }}>
-          WAN Connection Monitor
+          WanWatch
         </h1>
 
         <form onSubmit={handleSubmit}>

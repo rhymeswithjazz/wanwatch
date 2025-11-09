@@ -31,9 +31,9 @@ export async function sendOutageRestoredEmail(
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: process.env.EMAIL_TO,
-    subject: '🟢 WAN Connection Restored',
+    subject: '🟢 WanWatch - Connection Restored',
     html: `
-      <h2>WAN Connection Restored</h2>
+      <h2>Internet Connection Restored</h2>
       <p>Your internet connection has been restored.</p>
       <ul>
         <li><strong>Outage Start:</strong> ${startTime.toLocaleString()}</li>
@@ -41,6 +41,8 @@ export async function sendOutageRestoredEmail(
         <li><strong>Duration:</strong> ${durationDisplay}</li>
       </ul>
       <p><a href="${process.env.APP_URL || 'http://localhost:3000'}/dashboard">View Dashboard</a></p>
+      <hr style="margin-top: 20px; border: none; border-top: 1px solid #ddd;">
+      <p style="color: #666; font-size: 12px;">Sent by WanWatch</p>
     `
   };
 

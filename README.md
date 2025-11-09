@@ -1,4 +1,4 @@
-# WAN Connection Monitor
+# WanWatch
 
 A self-contained WAN monitoring application that runs in Docker, periodically checks internet connectivity, logs connection status and outages, sends email notifications when connection is restored, and provides a web dashboard with authentication to view outage statistics.
 
@@ -67,15 +67,15 @@ docker exec -it <container-name> npx ts-node scripts/create-user.ts admin@exampl
 
 ```bash
 # Build image
-docker build -t wan-monitor .
+docker build -t wanwatch .
 
 # Run container
 docker run -d \
   -p 3000:3000 \
-  -v wan-monitor-data:/app/data \
+  -v wanwatch-data:/app/data \
   --env-file .env \
-  --name wan-monitor \
-  wan-monitor
+  --name wanwatch \
+  wanwatch
 ```
 
 ### 3. Portainer/Synology Deployment
@@ -93,7 +93,7 @@ docker run -d \
 3. **Create initial user:**
    ```bash
    # SSH into your server and run:
-   docker exec -it wan-monitor sh
+   docker exec -it wanwatch sh
    npx ts-node scripts/create-user.ts admin@example.com yourpassword
    ```
 
@@ -107,7 +107,7 @@ docker run -d \
 
 #### Required:
 
-- `DATABASE_URL` - Database connection string (default: `file:./wan-monitor.db`)
+- `DATABASE_URL` - Database connection string (default: `file:./wanwatch.db`)
 - `NEXTAUTH_SECRET` - Secret for NextAuth (generate with `openssl rand -base64 32`)
 - `NEXTAUTH_URL` - Full URL of your app (e.g., `http://your-ip:3000`)
 
@@ -151,7 +151,7 @@ docker run -d \
 npm run create-user <email> <password> [name]
 
 # Using Docker
-docker exec -it wan-monitor npx ts-node scripts/create-user.ts <email> <password> [name]
+docker exec -it wanwatch npx ts-node scripts/create-user.ts <email> <password> [name]
 
 # Example
 npm run create-user admin@example.com mypassword "Admin User"
@@ -192,17 +192,17 @@ The application uses 4 main tables:
 
 ```bash
 # Local backup
-cp prisma/wan-monitor.db backup-$(date +%Y%m%d).db
+cp prisma/wanwatch.db backup-$(date +%Y%m%d).db
 
 # Docker backup
-docker cp wan-monitor:/app/data/wan-monitor.db ./backup-$(date +%Y%m%d).db
+docker cp wanwatch:/app/data/wanwatch.db ./backup-$(date +%Y%m%d).db
 ```
 
 ### View Logs
 
 ```bash
 # Docker logs
-docker logs -f wan-monitor
+docker logs -f wanwatch
 
 # System logs (in database)
 # Access via Prisma Studio or database viewer
@@ -228,7 +228,7 @@ Add network capabilities to docker-compose.yml:
 
 ```yaml
 services:
-  wan-monitor:
+  wanwatch:
     cap_add:
       - NET_ADMIN
 ```
@@ -238,13 +238,13 @@ services:
 - Verify SMTP credentials
 - Check if ports 587/465 are blocked by firewall
 - For Gmail, ensure you're using App Password, not regular password
-- Check container logs: `docker logs wan-monitor`
+- Check container logs: `docker logs wanwatch`
 
 ### Database locked errors
 
 - Ensure only one container instance is running
 - Check volume permissions
-- Restart container: `docker restart wan-monitor`
+- Restart container: `docker restart wanwatch`
 
 ### Authentication issues
 
@@ -255,7 +255,7 @@ services:
 ## Project Structure
 
 ```
-wan-monitor/
+wanwatch/
 ├── app/
 │   ├── api/              # API routes
 │   ├── dashboard/        # Dashboard page

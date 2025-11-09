@@ -1,12 +1,13 @@
 version: '3.8'
 
 services:
-  wan-monitor:
+  wanwatch:
     build: .
+    container_name: wanwatch
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=file:/app/data/wan-monitor.db
+      - DATABASE_URL=file:/app/data/wanwatch.db
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
       - SMTP_HOST=${SMTP_HOST}
@@ -19,7 +20,9 @@ services:
       - APP_URL=${APP_URL}
       - CHECK_INTERVAL_SECONDS=${CHECK_INTERVAL_SECONDS:-300}
     volumes:
-      - ./data:/app/data
+      - /volume1/docker/wanwatch:/app/data
+    cap_add:
+      - NET_ADMIN
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
