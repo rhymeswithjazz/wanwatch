@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { initializeMonitoring } from './startup'
 
 export const metadata: Metadata = {
-  title: 'WAN Connection Monitor',
+  title: 'WanWatch',
   description: 'Monitor your internet connection and track outages',
 }
 

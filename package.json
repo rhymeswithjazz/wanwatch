@@ -1,5 +1,5 @@
 {
-  "name": "wan-monitor",
+  "name": "wanwatch",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "create-user": "ts-node scripts/create-user.ts",
-    "seed-data": "ts-node scripts/seed-data.ts"
+    "create-user": "tsx scripts/create-user.ts",
+    "seed-data": "tsx scripts/seed-data.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

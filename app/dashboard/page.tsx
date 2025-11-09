@@ -18,7 +18,7 @@ export default async function DashboardPage() {
         marginBottom: '24px'
       }}>
         <h1 style={{ fontSize: '30px', fontWeight: 'bold', margin: 0 }}>
-          WAN Connection Monitor
+          WanWatch
         </h1>
         <form
           action={async () => {

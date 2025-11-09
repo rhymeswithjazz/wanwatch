@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useTransition } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface Stats {
@@ -18,13 +18,37 @@ export default function StatsDisplay() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('15m');
+  const [isPending, startTransition] = useTransition();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchStats = async () => {
-      const res = await fetch('/api/stats');
-      const data = await res.json();
-      setStats(data);
-      setLoading(false);
+      try {
+        const res = await fetch('/api/stats', {
+          credentials: 'include'
+        });
+
+        if (!res.ok) {
+          console.error('Failed to fetch stats:', res.status, res.statusText);
+          setLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.error) {
+          console.error('Stats API error:', data.error);
+          setLoading(false);
+          return;
+        }
+
+        setStats(data);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        setLoading(false);
+      }
     };
 
     fetchStats();
@@ -32,43 +56,92 @@ export default function StatsDisplay() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleTimePeriodChange = (period: TimePeriod) => {
+    startTransition(() => {
+      setTimePeriod(period);
+    });
+  };
+
+  const filteredChecks = useMemo(() => {
+    if (!stats) return [];
+
+    const filterDataByPeriod = (data: any[], period: TimePeriod) => {
+      if (period === 'all') return data;
+
+      const now = new Date();
+      const cutoffTime = new Date();
+
+      switch (period) {
+        case '5m':
+          cutoffTime.setMinutes(now.getMinutes() - 5);
+          break;
+        case '15m':
+          cutoffTime.setMinutes(now.getMinutes() - 15);
+          break;
+        case '1h':
+          cutoffTime.setHours(now.getHours() - 1);
+          break;
+        case '6h':
+          cutoffTime.setHours(now.getHours() - 6);
+          break;
+        case '24h':
+          cutoffTime.setHours(now.getHours() - 24);
+          break;
+      }
+
+      return data.filter(item => new Date(item.timestamp) >= cutoffTime);
+    };
+
+    const downsampleData = (data: any[], maxPoints: number) => {
+      if (data.length <= maxPoints) return data;
+
+      const step = Math.ceil(data.length / maxPoints);
+      const downsampled = [];
+
+      for (let i = 0; i < data.length; i += step) {
+        // Take a slice for this bucket
+        const bucket = data.slice(i, i + step);
+
+        // If any check in this bucket is disconnected, show as disconnected
+        const hasDisconnection = bucket.some(check => !check.isConnected);
+
+        // Use the middle item from the bucket as representative
+        const representative = bucket[Math.floor(bucket.length / 2)];
+
+        downsampled.push({
+          ...representative,
+          isConnected: !hasDisconnection // Show red if any disconnection in bucket
+        });
+      }
+
+      return downsampled;
+    };
+
+    const filtered = filterDataByPeriod(stats.recentChecks, timePeriod);
+
+    // Limit to max 500 points for performance
+    return downsampleData(filtered, 500);
+  }, [stats, timePeriod]);
+
+  const chartData = useMemo(() => {
+    return [...filteredChecks].reverse().map(check => ({
+      ...check,
+      status: 1
+    }));
+  }, [filteredChecks]);
+
   if (loading) return <div style={{ padding: '20px' }}>Loading...</div>;
-  if (!stats) return <div style={{ padding: '20px' }}>No data available</div>;
+  if (!stats) return (
+    <div style={{ padding: '20px', color: '#dc2626' }}>
+      Unable to load dashboard data. Please check the console for errors or try refreshing the page.
+    </div>
+  );
 
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}m`;
   };
-
-  const filterDataByPeriod = (data: any[], period: TimePeriod) => {
-    if (period === 'all') return data;
-
-    const now = new Date();
-    const cutoffTime = new Date();
-
-    switch (period) {
-      case '5m':
-        cutoffTime.setMinutes(now.getMinutes() - 5);
-        break;
-      case '15m':
-        cutoffTime.setMinutes(now.getMinutes() - 15);
-        break;
-      case '1h':
-        cutoffTime.setHours(now.getHours() - 1);
-        break;
-      case '6h':
-        cutoffTime.setHours(now.getHours() - 6);
-        break;
-      case '24h':
-        cutoffTime.setHours(now.getHours() - 24);
-        break;
-    }
-
-    return data.filter(item => new Date(item.timestamp) >= cutoffTime);
-  };
-
-  const filteredChecks = filterDataByPeriod(stats.recentChecks, timePeriod);
 
   // Calculate dynamic bar size based on number of data points
   const calculateBarSize = (dataLength: number) => {
@@ -166,7 +239,41 @@ export default function StatsDisplay() {
       </div>
 
       {/* Connection History Chart */}
-      <div style={cardStyle}>
+      <div style={{ ...cardStyle, position: 'relative' }}>
+        {isPending && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(255, 255, 255, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+            borderRadius: '8px'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                border: '4px solid #f3f4f6',
+                borderTop: '4px solid #2563eb',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 12px'
+              }}></div>
+              <div style={{ color: '#374151', fontSize: '14px' }}>Loading data...</div>
+            </div>
+          </div>
+        )}
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h2 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
             Recent Connection Status
@@ -175,17 +282,19 @@ export default function StatsDisplay() {
             {(['5m', '15m', '1h', '6h', '24h', 'all'] as TimePeriod[]).map(period => (
               <button
                 key={period}
-                onClick={() => setTimePeriod(period)}
+                onClick={() => handleTimePeriodChange(period)}
+                disabled={isPending}
                 style={{
                   padding: '6px 12px',
                   background: timePeriod === period ? '#2563eb' : '#f3f4f6',
                   color: timePeriod === period ? 'white' : '#374151',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: 'pointer',
+                  cursor: isPending ? 'not-allowed' : 'pointer',
                   fontSize: '14px',
                   fontWeight: timePeriod === period ? '600' : '400',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  opacity: isPending ? 0.6 : 1
                 }}
               >
                 {timePeriodLabels[period]}
@@ -203,7 +312,26 @@ export default function StatsDisplay() {
             <span>Disconnected</span>
           </div>
           <div style={{ color: '#6b7280', fontSize: '14px', marginLeft: 'auto' }}>
-            Showing {filteredChecks.length} checks
+            {(() => {
+              const originalCount = timePeriod === 'all'
+                ? stats.recentChecks.length
+                : stats.recentChecks.filter(item => {
+                    const now = new Date();
+                    const cutoffTime = new Date();
+                    switch (timePeriod) {
+                      case '5m': cutoffTime.setMinutes(now.getMinutes() - 5); break;
+                      case '15m': cutoffTime.setMinutes(now.getMinutes() - 15); break;
+                      case '1h': cutoffTime.setHours(now.getHours() - 1); break;
+                      case '6h': cutoffTime.setHours(now.getHours() - 6); break;
+                      case '24h': cutoffTime.setHours(now.getHours() - 24); break;
+                    }
+                    return new Date(item.timestamp) >= cutoffTime;
+                  }).length;
+
+              return originalCount > 500
+                ? `Showing ${filteredChecks.length} of ${originalCount.toLocaleString()} checks (downsampled)`
+                : `Showing ${filteredChecks.length} checks`;
+            })()}
           </div>
         </div>
         {filteredChecks.length === 0 ? (
@@ -213,10 +341,7 @@ export default function StatsDisplay() {
         ) : (
           <ResponsiveContainer width="100%" height={300} key={`${timePeriod}-${filteredChecks.length}`}>
             <BarChart
-              data={[...filteredChecks].reverse().map(check => ({
-                ...check,
-                status: 1
-              }))}
+              data={chartData}
               barSize={dynamicBarSize}
             >
               <CartesianGrid strokeDasharray="3 3" />
@@ -240,7 +365,7 @@ export default function StatsDisplay() {
                 }}
               />
               <Bar dataKey="status" radius={[4, 4, 0, 0]}>
-                {[...filteredChecks].reverse().map((entry, index) => (
+                {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.isConnected ? '#16a34a' : '#dc2626'} />
                 ))}
               </Bar>
@@ -251,31 +376,195 @@ export default function StatsDisplay() {
 
       {/* Outage History Table */}
       <div style={cardStyle}>
-        <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '16px' }}>
-          Outage History
-        </h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Start Time</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>End Time</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.outageHistory.map((outage, idx) => (
-              <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <td style={{ padding: '8px' }}>
-                  {new Date(outage.startTime).toLocaleString()}
-                </td>
-                <td style={{ padding: '8px' }}>
-                  {new Date(outage.endTime).toLocaleString()}
-                </td>
-                <td style={{ padding: '8px' }}>{formatDuration(outage.durationSec)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
+            Outage History
+          </h2>
+          <div style={{ color: '#6b7280', fontSize: '14px' }}>
+            {stats.outageHistory.length} total outages
+          </div>
+        </div>
+
+        {stats.outageHistory.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+            No outages recorded
+          </div>
+        ) : (
+          <>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e5e7eb', background: '#f9fafb' }}>
+                  <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Start Time</th>
+                  <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: '600', color: '#374151' }}>End Time</th>
+                  <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const totalPages = Math.ceil(stats.outageHistory.length / itemsPerPage);
+                  const startIndex = (currentPage - 1) * itemsPerPage;
+                  const endIndex = startIndex + itemsPerPage;
+                  const paginatedOutages = stats.outageHistory.slice(startIndex, endIndex);
+
+                  return paginatedOutages.map((outage, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                      <td style={{ padding: '12px 8px' }}>
+                        {new Date(outage.startTime).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        {new Date(outage.endTime).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>{formatDuration(outage.durationSec)}</td>
+                    </tr>
+                  ));
+                })()}
+              </tbody>
+            </table>
+
+            {/* Pagination Controls */}
+            {(() => {
+              const totalPages = Math.ceil(stats.outageHistory.length / itemsPerPage);
+
+              if (totalPages <= 1) return null;
+
+              const pageNumbers = [];
+              const maxVisiblePages = 7;
+
+              let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+              let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+              if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+              }
+
+              for (let i = startPage; i <= endPage; i++) {
+                pageNumbers.push(i);
+              }
+
+              return (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '16px',
+                  paddingTop: '16px',
+                  borderTop: '1px solid #e5e7eb'
+                }}>
+                  <div style={{ color: '#6b7280', fontSize: '14px' }}>
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, stats.outageHistory.length)} of {stats.outageHistory.length}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      style={{
+                        padding: '6px 12px',
+                        background: currentPage === 1 ? '#f3f4f6' : 'white',
+                        color: currentPage === 1 ? '#9ca3af' : '#374151',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '4px',
+                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      Previous
+                    </button>
+
+                    {/* First page */}
+                    {startPage > 1 && (
+                      <>
+                        <button
+                          onClick={() => setCurrentPage(1)}
+                          style={{
+                            padding: '6px 12px',
+                            background: 'white',
+                            color: '#374151',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            minWidth: '40px'
+                          }}
+                        >
+                          1
+                        </button>
+                        {startPage > 2 && (
+                          <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>
+                        )}
+                      </>
+                    )}
+
+                    {/* Page Numbers */}
+                    {pageNumbers.map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        style={{
+                          padding: '6px 12px',
+                          background: currentPage === page ? '#2563eb' : 'white',
+                          color: currentPage === page ? 'white' : '#374151',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: currentPage === page ? '600' : '400',
+                          minWidth: '40px'
+                        }}
+                      >
+                        {page}
+                      </button>
+                    ))}
+
+                    {/* Last page */}
+                    {endPage < totalPages && (
+                      <>
+                        {endPage < totalPages - 1 && (
+                          <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>
+                        )}
+                        <button
+                          onClick={() => setCurrentPage(totalPages)}
+                          style={{
+                            padding: '6px 12px',
+                            background: 'white',
+                            color: '#374151',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            minWidth: '40px'
+                          }}
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      style={{
+                        padding: '6px 12px',
+                        background: currentPage === totalPages ? '#f3f4f6' : 'white',
+                        color: currentPage === totalPages ? '#9ca3af' : '#374151',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '4px',
+                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </>
+        )}
       </div>
     </div>
   );
