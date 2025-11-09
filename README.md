@@ -49,6 +49,25 @@ The application will be available at `http://localhost:3000`
 
 ### 2. Docker Deployment
 
+#### Pull from Docker Hub (Recommended):
+
+```bash
+# Pull the latest multi-architecture image
+docker pull rhymeswithjazz/wanwatch:latest
+
+# Run with Docker Compose
+cp .env.example .env
+# Edit .env with your production values
+
+# Update docker-compose.yml to use the published image:
+# image: rhymeswithjazz/wanwatch:latest
+
+docker-compose up -d
+
+# Create admin user (after first start)
+docker exec -it <container-name> npx tsx scripts/create-user.ts admin@example.com yourpassword
+```
+
 #### Build and run with Docker Compose:
 
 ```bash
@@ -60,13 +79,28 @@ cp .env.example .env
 docker-compose up -d
 
 # Create admin user (after first start)
-docker exec -it <container-name> npx ts-node scripts/create-user.ts admin@example.com yourpassword
+docker exec -it <container-name> npx tsx scripts/create-user.ts admin@example.com yourpassword
 ```
 
-#### Or build manually:
+#### Build for Multiple Architectures (ARM64 + AMD64):
+
+**IMPORTANT**: If you're publishing to Docker Hub, always use the multi-architecture build script:
 
 ```bash
-# Build image
+# Build and push for both ARM64 (Apple Silicon, RPi) and AMD64 (Intel/AMD)
+./build-and-push.sh <docker-username> <version-tag> [puid] [pgid]
+
+# Example
+./build-and-push.sh myusername v1.0.0 1026 100
+./build-and-push.sh myusername $(git rev-parse --short HEAD) 1026 100
+```
+
+**DO NOT** use `docker build` for production images - it only builds for your current platform.
+
+#### Or build manually (single architecture only):
+
+```bash
+# Build image (local use only - single architecture)
 docker build -t wanwatch .
 
 # Run container
@@ -87,6 +121,10 @@ docker run -d \
 2. **In Portainer:**
    - Create new Stack
    - Paste contents of `docker-compose.yml`
+   - **Important**: Change the image line to use the published multi-arch image:
+     ```yaml
+     image: rhymeswithjazz/wanwatch:latest
+     ```
    - Add environment variables from `.env` in the environment variables section
    - Deploy the stack
 
@@ -94,7 +132,7 @@ docker run -d \
    ```bash
    # SSH into your server and run:
    docker exec -it wanwatch sh
-   npx ts-node scripts/create-user.ts admin@example.com yourpassword
+   npx tsx scripts/create-user.ts admin@example.com yourpassword
    ```
 
 4. **Access dashboard:**
@@ -212,7 +250,11 @@ npx prisma studio
 ### Update Application
 
 ```bash
-# Rebuild and restart
+# Option 1: Pull latest from Docker Hub (recommended)
+docker-compose pull
+docker-compose up -d
+
+# Option 2: Rebuild locally
 docker-compose down
 docker-compose build --no-cache
 docker-compose up -d
