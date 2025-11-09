@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Logo } from '@/components/logo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -47,7 +48,10 @@ export default function LoginPage() {
       </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl">WanWatch</CardTitle>
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <Logo className="w-10 h-10 text-primary" />
+            <CardTitle className="text-3xl">WanWatch</CardTitle>
+          </div>
           <CardDescription>Sign in to access the dashboard</CardDescription>
         </CardHeader>
         <CardContent>

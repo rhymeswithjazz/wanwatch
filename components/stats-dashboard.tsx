@@ -17,6 +17,17 @@ interface Stats {
   outageHistory: any[];
 }
 
+interface NetworkInfo {
+  ipv4: string;
+  ipv6: string;
+  city: string;
+  region: string;
+  country: string;
+  isp: string;
+  timezone: string;
+  asn: string;
+}
+
 type TimePeriod = '5m' | '15m' | '1h' | '6h' | '24h' | 'all';
 
 // Helper function for formatting duration
@@ -28,6 +39,7 @@ const formatDuration = (seconds: number) => {
 
 export default function StatsDisplay() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('15m');
   const [isPending, startTransition] = useTransition();
@@ -61,8 +73,25 @@ export default function StatsDisplay() {
       }
     };
 
+    // Fetch network info once on mount (not in an interval)
+    const fetchNetworkInfo = async () => {
+      try {
+        const res = await fetch('/api/network-info');
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.error) {
+            setNetworkInfo(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching network info:', error);
+        // Silently fail - network info is optional
+      }
+    };
+
     fetchStats();
-    const interval = setInterval(fetchStats, 30000); // Refresh every 30s
+    fetchNetworkInfo(); // Only fetch once, no interval
+    const interval = setInterval(fetchStats, 30000); // Refresh stats every 30s
     return () => clearInterval(interval);
   }, []);
 
@@ -74,6 +103,25 @@ export default function StatsDisplay() {
 
   const filteredChecks = useMemo(() => {
     if (!stats) return [];
+
+    // Define max bars to show for each time period
+    // With 30-second intervals, this creates a clean, readable chart
+    const getMaxBarsForPeriod = (period: TimePeriod): number => {
+      switch (period) {
+        case '5m':
+          return 10;   // All 10 bars (every 30s)
+        case '15m':
+          return 30;   // All 30 bars (every 30s)
+        case '1h':
+          return 60;   // 60 bars (aggregate every 2 checks = 1 min per bar)
+        case '6h':
+          return 72;   // 72 bars (aggregate every 10 checks = 5 min per bar)
+        case '24h':
+          return 96;   // 96 bars (aggregate every 30 checks = 15 min per bar)
+        case 'all':
+          return 200;  // Max 200 bars for full history
+      }
+    };
 
     const filterDataByPeriod = (data: any[], period: TimePeriod) => {
       if (period === 'all') return data;
@@ -128,13 +176,15 @@ export default function StatsDisplay() {
     };
 
     const filtered = filterDataByPeriod(stats.recentChecks, timePeriod);
+    const maxBars = getMaxBarsForPeriod(timePeriod);
 
-    // Limit to max 500 points for performance
-    return downsampleData(filtered, 500);
+    // Downsample to fixed number of bars for consistent chart appearance
+    return downsampleData(filtered, maxBars);
   }, [stats, timePeriod]);
 
   const chartData = useMemo(() => {
-    return [...filteredChecks].reverse().map(check => ({
+    // Keep newest on the left (no reverse - data comes DESC from API)
+    return filteredChecks.map(check => ({
       ...check,
       status: 1
     }));
@@ -181,18 +231,8 @@ export default function StatsDisplay() {
     </div>
   );
 
-  // Calculate dynamic bar size based on number of data points
-  const calculateBarSize = (dataLength: number) => {
-    if (dataLength <= 10) return 40;
-    if (dataLength <= 30) return 30;
-    if (dataLength <= 60) return 20;
-    if (dataLength <= 120) return 15;
-    if (dataLength <= 300) return 10;
-    if (dataLength <= 600) return 5;
-    return 3;
-  };
-
-  const dynamicBarSize = calculateBarSize(filteredChecks.length);
+  // Don't set a fixed barSize - let Recharts calculate it to fill the width
+  // This ensures bars touch each other with no gaps
 
   const timePeriodLabels: Record<TimePeriod, string> = {
     '5m': '5 Min',
@@ -272,7 +312,14 @@ export default function StatsDisplay() {
         )}
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle>Recent Connection Status</CardTitle>
+            <div>
+              <CardTitle>Recent Connection Status</CardTitle>
+              {networkInfo && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  {networkInfo.ipv4} • {networkInfo.city}, {networkInfo.region}
+                </div>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               {(['5m', '15m', '1h', '6h', '24h', 'all'] as TimePeriod[]).map(period => (
                 <Button
@@ -315,9 +362,12 @@ export default function StatsDisplay() {
                       return new Date(item.timestamp) >= cutoffTime;
                     }).length;
 
-                return originalCount > 500
-                  ? `Showing ${filteredChecks.length} of ${originalCount.toLocaleString()} checks (downsampled)`
-                  : `Showing ${filteredChecks.length} checks`;
+                const barCount = filteredChecks.length;
+                if (originalCount === barCount) {
+                  return `${barCount} bars`;
+                } else {
+                  return `${barCount} bars (${originalCount.toLocaleString()} checks)`;
+                }
               })()}
             </div>
           </div>
@@ -329,7 +379,8 @@ export default function StatsDisplay() {
             <ResponsiveContainer width="100%" height={300} key={`${timePeriod}-${filteredChecks.length}`}>
               <BarChart
                 data={chartData}
-                barSize={dynamicBarSize}
+                barCategoryGap={-1}
+                barGap={-1}
               >
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis
@@ -338,14 +389,10 @@ export default function StatsDisplay() {
                   angle={-45}
                   textAnchor="end"
                   height={80}
-                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }}
+                  stroke="hsl(var(--border))"
                 />
-                <YAxis
-                  domain={[0, 1]}
-                  ticks={[0, 1]}
-                  tickFormatter={(value) => value ? 'Online' : 'Offline'}
-                  className="text-xs"
-                />
+                <YAxis hide />
                 <Tooltip
                   labelFormatter={(time) => new Date(time).toLocaleString()}
                   formatter={(value: any, name: any, props: any) => {
@@ -358,9 +405,16 @@ export default function StatsDisplay() {
                     color: 'hsl(var(--popover-foreground))'
                   }}
                 />
-                <Bar dataKey="status" radius={[4, 4, 0, 0]}>
+                <Bar
+                  dataKey="status"
+                  isAnimationActive={false}
+                  maxBarSize={1000}
+                >
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.isConnected ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.isConnected ? 'hsl(var(--success))' : 'hsl(var(--destructive))'}
+                    />
                   ))}
                 </Bar>
               </BarChart>
