@@ -405,6 +405,90 @@ sudo chown 1001:1001 /volume1/docker/wanwatch/wanwatch.db
 sudo docker start wanwatch
 ```
 
+## Reverse Proxy Setup (HTTPS with Custom Domain)
+
+If you're using Synology's reverse proxy or another reverse proxy (Nginx Proxy Manager, Traefik, etc.) to expose WanWatch with HTTPS and a custom domain, you need to configure NextAuth properly.
+
+### The Problem
+
+Without proper configuration, after logout you'll be redirected to the internal IP (e.g., `http://192.168.68.68:3000/login`) instead of your domain (e.g., `https://wanwatch.yourdomain.com/login`).
+
+### The Solution
+
+Set `NEXTAUTH_URL` to your **public domain** (the one users access):
+
+```yaml
+environment:
+  - NEXTAUTH_URL=https://wanwatch.yourdomain.com  # ← Your public URL!
+  - AUTH_TRUST_HOST=true                           # ← Required for reverse proxy
+```
+
+**Important Notes:**
+- ✅ Use `https://` if your reverse proxy terminates SSL
+- ✅ Do NOT include the port (`:3000`) in the URL - the reverse proxy handles that
+- ✅ `AUTH_TRUST_HOST=true` allows NextAuth to trust the forwarded host headers from your reverse proxy
+- ✅ After changing `NEXTAUTH_URL`, restart the container for changes to take effect
+
+### Synology Reverse Proxy Configuration
+
+**Control Panel → Application Portal → Reverse Proxy:**
+
+1. Click **Create**
+2. **General:**
+   - Description: `WanWatch`
+   - Source:
+     - Protocol: `HTTPS`
+     - Hostname: `wanwatch.yourdomain.com`
+     - Port: `443`
+     - Enable HSTS: ✅ (recommended)
+   - Destination:
+     - Protocol: `HTTP`
+     - Hostname: `localhost` (or the container IP)
+     - Port: `3000`
+
+3. **Custom Headers** (click "Create" → "WebSocket"):
+   - This automatically adds the necessary headers for WebSocket support
+
+4. Apply and save
+
+### Certificate Setup
+
+**Control Panel → Security → Certificate:**
+
+1. Add a certificate for your domain (Let's Encrypt or custom)
+2. Click **Configure**
+3. Assign the certificate to your reverse proxy rule
+
+### Testing
+
+After configuration:
+1. Access `https://wanwatch.yourdomain.com`
+2. Log in
+3. Log out
+4. Verify you're redirected to `https://wanwatch.yourdomain.com/login` (not the IP address)
+
+### Troubleshooting Reverse Proxy Issues
+
+**Issue: Still redirecting to IP address after logout**
+```bash
+# Check NEXTAUTH_URL is set correctly
+docker exec wanwatch printenv NEXTAUTH_URL
+# Should show: https://wanwatch.yourdomain.com
+
+# If incorrect, update your docker-compose.yml and recreate container
+```
+
+**Issue: "Invalid Host" or "Untrusted Host" errors**
+```bash
+# Ensure AUTH_TRUST_HOST is set to true
+docker exec wanwatch printenv AUTH_TRUST_HOST
+# Should show: true
+```
+
+**Issue: Redirect loop or "Too many redirects"**
+- Check that reverse proxy is using HTTP to backend (not HTTPS)
+- Ensure you're not forcing HTTPS in the container (the reverse proxy handles SSL)
+
 ## Advanced: Multiple Instances
 
 If you want to run multiple WanWatch instances (e.g., monitoring different connections):
