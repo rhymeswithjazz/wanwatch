@@ -145,6 +145,29 @@ Next.js 15 App Router (React 19 + TypeScript)
 
 ### Docker Deployment
 
+**IMPORTANT**: Always use `build-and-push.sh` for building and publishing Docker images. This ensures multi-architecture support for both ARM64 (Apple Silicon, Raspberry Pi) and AMD64 (Intel/AMD, Synology NAS).
+
+**Building and Publishing Multi-Architecture Images**:
+
+```bash
+# Build and push for both ARM64 and AMD64
+./build-and-push.sh <docker-username> <version-tag> [puid] [pgid]
+
+# Example with commit hash
+./build-and-push.sh rhymeswithjazz $(git rev-parse --short HEAD) 1026 100
+
+# Example with version number
+./build-and-push.sh rhymeswithjazz v1.2.0 1026 100
+
+# The script automatically:
+# - Creates/uses buildx builder for multi-platform builds
+# - Builds for linux/amd64 and linux/arm64
+# - Tags with both specified version and 'latest'
+# - Pushes to Docker Hub
+```
+
+**DO NOT** use `docker build` or `docker-compose build` for production images - these only build for your current platform. Always use `build-and-push.sh`.
+
 **Multi-stage Dockerfile**:
 1. **deps**: `npm ci` to install dependencies
 2. **builder**: Generate Prisma client → `npm run build` (Next.js standalone output)
