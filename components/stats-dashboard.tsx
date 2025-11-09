@@ -232,7 +232,7 @@ export default function StatsDisplay() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Status</CardDescription>
-            <CardTitle className={stats.activeOutage ? 'text-destructive' : 'text-green-600'}>
+            <CardTitle className={stats.activeOutage ? 'text-destructive' : 'text-success'}>
               {stats.activeOutage ? 'OFFLINE' : 'ONLINE'}
             </CardTitle>
           </CardHeader>
@@ -291,7 +291,7 @@ export default function StatsDisplay() {
         <CardContent>
           <div className="flex items-center gap-4 mb-3 text-sm flex-wrap">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-600 rounded-sm"></div>
+              <div className="w-4 h-4 bg-success rounded-sm"></div>
               <span>Connected</span>
             </div>
             <div className="flex items-center gap-2">
@@ -360,7 +360,7 @@ export default function StatsDisplay() {
                 />
                 <Bar dataKey="status" radius={[4, 4, 0, 0]}>
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.isConnected ? '#16a34a' : 'hsl(var(--destructive))'} />
+                    <Cell key={`cell-${index}`} fill={entry.isConnected ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} />
                   ))}
                 </Bar>
               </BarChart>
