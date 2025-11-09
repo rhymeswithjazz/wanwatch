@@ -19,6 +19,13 @@ interface Stats {
 
 type TimePeriod = '5m' | '15m' | '1h' | '6h' | '24h' | 'all';
 
+// Helper function for formatting duration
+const formatDuration = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${hours}h ${minutes}m`;
+};
+
 export default function StatsDisplay() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,20 +140,8 @@ export default function StatsDisplay() {
     }));
   }, [filteredChecks]);
 
-  if (loading) return <div className="p-5">Loading...</div>;
-  if (!stats) return (
-    <div className="p-5 text-destructive">
-      Unable to load dashboard data. Please check the console for errors or try refreshing the page.
-    </div>
-  );
-
-  const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-  };
-
   // Define columns for the outage history table
+  // This must be before any conditional returns to follow Rules of Hooks
   const outageColumns: ColumnDef<any>[] = useMemo(() => [
     {
       accessorKey: "startTime",
@@ -178,6 +173,13 @@ export default function StatsDisplay() {
       },
     },
   ], []);
+
+  if (loading) return <div className="p-5">Loading...</div>;
+  if (!stats) return (
+    <div className="p-5 text-destructive">
+      Unable to load dashboard data. Please check the console for errors or try refreshing the page.
+    </div>
+  );
 
   // Calculate dynamic bar size based on number of data points
   const calculateBarSize = (dataLength: number) => {
