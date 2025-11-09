@@ -3,9 +3,10 @@
 import { useEffect, useState, useMemo, useTransition } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { DataTable, DataTableColumnHeader } from '@/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 
 interface Stats {
   totalOutages: number;
@@ -23,8 +24,6 @@ export default function StatsDisplay() {
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('15m');
   const [isPending, startTransition] = useTransition();
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -146,6 +145,39 @@ export default function StatsDisplay() {
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}m`;
   };
+
+  // Define columns for the outage history table
+  const outageColumns: ColumnDef<any>[] = useMemo(() => [
+    {
+      accessorKey: "startTime",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Start Time" />
+      ),
+      cell: ({ row }) => {
+        const date = new Date(row.getValue("startTime"));
+        return date.toLocaleString();
+      },
+    },
+    {
+      accessorKey: "endTime",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="End Time" />
+      ),
+      cell: ({ row }) => {
+        const date = new Date(row.getValue("endTime"));
+        return date.toLocaleString();
+      },
+    },
+    {
+      accessorKey: "durationSec",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Duration" />
+      ),
+      cell: ({ row }) => {
+        return formatDuration(row.getValue("durationSec"));
+      },
+    },
+  ], []);
 
   // Calculate dynamic bar size based on number of data points
   const calculateBarSize = (dataLength: number) => {
@@ -338,10 +370,10 @@ export default function StatsDisplay() {
       {/* Outage History Table */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Outage History</CardTitle>
-            <CardDescription>{stats.outageHistory.length} total outages</CardDescription>
-          </div>
+          <CardTitle>Outage History</CardTitle>
+          <CardDescription>
+            View and search through all recorded outages
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {stats.outageHistory.length === 0 ? (
@@ -349,130 +381,12 @@ export default function StatsDisplay() {
               No outages recorded
             </div>
           ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Start Time</TableHead>
-                    <TableHead>End Time</TableHead>
-                    <TableHead>Duration</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    const totalPages = Math.ceil(stats.outageHistory.length / itemsPerPage);
-                    const startIndex = (currentPage - 1) * itemsPerPage;
-                    const endIndex = startIndex + itemsPerPage;
-                    const paginatedOutages = stats.outageHistory.slice(startIndex, endIndex);
-
-                    return paginatedOutages.map((outage, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>
-                          {new Date(outage.startTime).toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(outage.endTime).toLocaleString()}
-                        </TableCell>
-                        <TableCell>{formatDuration(outage.durationSec)}</TableCell>
-                      </TableRow>
-                    ));
-                  })()}
-                </TableBody>
-              </Table>
-
-              {/* Pagination Controls */}
-              {(() => {
-                const totalPages = Math.ceil(stats.outageHistory.length / itemsPerPage);
-
-                if (totalPages <= 1) return null;
-
-                const pageNumbers = [];
-                const maxVisiblePages = 7;
-
-                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-                if (endPage - startPage < maxVisiblePages - 1) {
-                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                }
-
-                for (let i = startPage; i <= endPage; i++) {
-                  pageNumbers.push(i);
-                }
-
-                return (
-                  <div className="flex justify-between items-center mt-4 pt-4 border-t">
-                    <div className="text-sm text-muted-foreground">
-                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, stats.outageHistory.length)} of {stats.outageHistory.length}
-                    </div>
-
-                    <div className="flex gap-1">
-                      <Button
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Previous
-                      </Button>
-
-                      {startPage > 1 && (
-                        <>
-                          <Button
-                            onClick={() => setCurrentPage(1)}
-                            variant="outline"
-                            size="sm"
-                            className="min-w-[40px]"
-                          >
-                            1
-                          </Button>
-                          {startPage > 2 && (
-                            <span className="px-1 py-1.5 text-muted-foreground">...</span>
-                          )}
-                        </>
-                      )}
-
-                      {pageNumbers.map(page => (
-                        <Button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          variant={currentPage === page ? 'default' : 'outline'}
-                          size="sm"
-                          className="min-w-[40px]"
-                        >
-                          {page}
-                        </Button>
-                      ))}
-
-                      {endPage < totalPages && (
-                        <>
-                          {endPage < totalPages - 1 && (
-                            <span className="px-1 py-1.5 text-muted-foreground">...</span>
-                          )}
-                          <Button
-                            onClick={() => setCurrentPage(totalPages)}
-                            variant="outline"
-                            size="sm"
-                            className="min-w-[40px]"
-                          >
-                            {totalPages}
-                          </Button>
-                        </>
-                      )}
-
-                      <Button
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })()}
-            </>
+            <DataTable
+              columns={outageColumns}
+              data={stats.outageHistory}
+              searchKey="startTime"
+              searchPlaceholder="Search by date..."
+            />
           )}
         </CardContent>
       </Card>
