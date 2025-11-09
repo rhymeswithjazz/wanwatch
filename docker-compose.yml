@@ -2,14 +2,25 @@ version: '3.8'
 
 services:
   wanwatch:
-    build: .
+    build:
+      context: .
+      args:
+        PUID: ${PUID:-1026}
+        PGID: ${PGID:-100}
     container_name: wanwatch
     ports:
       - "3000:3000"
     environment:
+      - TZ=${TZ:-America/New_York}
+      - PUID=${PUID:-1026}
+      - PGID=${PGID:-100}
       - DATABASE_URL=file:/app/data/wanwatch.db
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - AUTH_TRUST_HOST=${AUTH_TRUST_HOST:-true}
+      - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD}
+      - INITIAL_ADMIN_NAME=${INITIAL_ADMIN_NAME:-Admin}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_SECURE=${SMTP_SECURE}
@@ -25,7 +36,13 @@ services:
       - NET_ADMIN
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://localhost:3000/api/health
       interval: 30s
       timeout: 10s
       retries: 3
