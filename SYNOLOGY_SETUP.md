@@ -12,6 +12,32 @@ This guide shows you how to deploy WanWatch with data stored in `/volume1/docker
 
 ## Pre-Deployment Setup (Important!)
 
+### Step 0: Find Your User and Group IDs
+
+You need to know your Synology user ID (PUID) and group ID (PGID) for proper file permissions.
+
+**Via SSH:**
+```bash
+# SSH into your Synology
+ssh your-admin@synology-ip
+
+# Find your user ID
+id -u
+
+# Find your group ID (usually 'users' group is 101)
+id -g
+
+# Or get all info at once
+id
+# Example output: uid=1026(your-user) gid=101(users) groups=101(users)
+```
+
+**Common values:**
+- PUID: Usually 1026 or similar for your main user
+- PGID: Usually 101 (users group on Synology)
+
+Write these down - you'll need them for the docker-compose.yml!
+
 ### Step 1: Create the Data Directory
 
 **Option A: Via File Station (Easier)**
@@ -32,19 +58,19 @@ ssh your-admin@synology-ip
 # Create the directory
 sudo mkdir -p /volume1/docker/wanwatch
 
-# Set proper ownership (important!)
-sudo chown -R 1001:1001 /volume1/docker/wanwatch
+# Set proper ownership (replace 1026:101 with your actual PUID:PGID from Step 0!)
+sudo chown -R 1026:101 /volume1/docker/wanwatch
 
 # Set permissions
 sudo chmod 755 /volume1/docker/wanwatch
 
-# Verify
+# Verify (should show your user ID and group ID)
 ls -la /volume1/docker/ | grep wanwatch
-# Should show: drwxr-xr-x ... 1001 1001 ... wanwatch
+# Should show: drwxr-xr-x ... 1026 101 ... wanwatch
 ```
 
 ### Why ownership matters:
-The WanWatch container runs as user ID `1001` (non-root for security). The folder needs to be owned by this user so the container can write the database.
+The WanWatch container runs with the PUID/PGID you specify in docker-compose.yml (defaults to 1026:101). The folder needs to be owned by this user/group so the container can write the database without permission errors.
 
 ## Docker Compose Configuration
 
@@ -60,9 +86,16 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - TZ=America/New_York              # ← Your timezone
+      - PUID=1026                        # ← Your user ID (from Step 0)
+      - PGID=100                         # ← Your group ID (from Step 0)
       - DATABASE_URL=file:/app/data/wanwatch.db
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - AUTH_TRUST_HOST=true             # ← Allow access from any IP
+      - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}    # ← Auto-create admin user
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD}
+      - INITIAL_ADMIN_NAME=${INITIAL_ADMIN_NAME}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_SECURE=${SMTP_SECURE}
@@ -84,15 +117,57 @@ services:
       retries: 3
 ```
 
-**Key Line:**
+**Key Lines:**
 ```yaml
+environment:
+  - TZ=America/New_York    # Timezone for proper timestamps
+  - PUID=1026              # Your Synology user ID
+  - PGID=101               # Your Synology group ID (usually 'users')
+
 volumes:
   - /volume1/docker/wanwatch:/app/data
 ```
 
-This mounts `/volume1/docker/wanwatch` from your Synology to `/app/data` inside the container.
+- **TZ**: Sets the timezone for logs and database timestamps
+- **PUID/PGID**: Ensures the container runs with your Synology user permissions (prevents permission errors!)
+- **Volume mount**: Maps `/volume1/docker/wanwatch` from your Synology to `/app/data` inside the container
 
 ## After Deployment
+
+### Initial Admin User Setup
+
+WanWatch will automatically create an admin user on first startup if you set the following environment variables:
+
+```yaml
+environment:
+  - INITIAL_ADMIN_EMAIL=admin@example.com
+  - INITIAL_ADMIN_PASSWORD=your-secure-password
+  - INITIAL_ADMIN_NAME=Admin  # Optional, defaults to "Admin"
+```
+
+**Important Notes:**
+- ✅ The admin user is only created if it doesn't already exist (checked by email)
+- ✅ On subsequent restarts, these variables are ignored if the user exists
+- ✅ The password is securely hashed with bcrypt before storage
+- ⚠️ Change the default password immediately after first login!
+
+**Alternative - Manual User Creation:**
+
+If you prefer not to use environment variables, you can create a user manually via SSH:
+
+```bash
+# SSH into your Synology
+ssh ras@kent
+
+# Access the running container
+sudo docker exec -it wanwatch sh
+
+# Run the create-user script
+node scripts/create-user.js admin@example.com your-password "Admin Name"
+
+# Exit container
+exit
+```
 
 ### Verify Data Location
 
@@ -377,9 +452,11 @@ services:
 - **Inside container**: `/app/data/wanwatch.db`
 
 ### File Permissions
-- **Owner**: 1001:1001 (nextjs user in container)
+- **Owner**: PUID:PGID (your user ID from docker-compose.yml, e.g., 1026:101)
 - **Directory**: 755 (rwxr-xr-x)
 - **Database**: 644 (rw-r--r--)
+
+**Note**: The container automatically runs with your specified PUID/PGID, so file ownership matches your Synology user!
 
 ### Useful Commands
 ```bash
