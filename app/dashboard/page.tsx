@@ -1,6 +1,8 @@
 import { auth, signOut } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import StatsDisplay from '@/components/stats-dashboard';
+import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -10,36 +12,27 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px' }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px'
-      }}>
-        <h1 style={{ fontSize: '30px', fontWeight: 'bold', margin: 0 }}>
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">
           WanWatch
         </h1>
-        <form
-          action={async () => {
-            'use server';
-            await signOut();
-          }}
-        >
-          <button
-            type="submit"
-            style={{
-              padding: '8px 16px',
-              background: '#dc2626',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <form
+            action={async () => {
+              'use server';
+              await signOut();
             }}
           >
-            Sign Out
-          </button>
-        </form>
+            <Button
+              type="submit"
+              variant="destructive"
+            >
+              Sign Out
+            </Button>
+          </form>
+        </div>
       </div>
       <StatsDisplay />
     </div>

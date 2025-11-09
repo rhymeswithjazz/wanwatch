@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { initializeMonitoring } from './startup'
+import { ThemeProvider } from '@/components/theme-provider'
+import './globals.css'
 
 export const metadata: Metadata = {
   title: 'WanWatch',
@@ -17,14 +19,16 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body style={{
-        margin: 0,
-        padding: 0,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        background: '#f9fafb'
-      }}>
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )
