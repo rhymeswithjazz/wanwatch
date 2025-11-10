@@ -345,31 +345,6 @@ export default function StatsDisplay() {
               <div className="w-4 h-4 bg-destructive rounded-sm"></div>
               <span>Disconnected</span>
             </div>
-            <div className="text-muted-foreground text-sm ml-auto">
-              {(() => {
-                const originalCount = timePeriod === 'all'
-                  ? stats.recentChecks.length
-                  : stats.recentChecks.filter(item => {
-                      const now = new Date();
-                      const cutoffTime = new Date();
-                      switch (timePeriod) {
-                        case '5m': cutoffTime.setMinutes(now.getMinutes() - 5); break;
-                        case '15m': cutoffTime.setMinutes(now.getMinutes() - 15); break;
-                        case '1h': cutoffTime.setHours(now.getHours() - 1); break;
-                        case '6h': cutoffTime.setHours(now.getHours() - 6); break;
-                        case '24h': cutoffTime.setHours(now.getHours() - 24); break;
-                      }
-                      return new Date(item.timestamp) >= cutoffTime;
-                    }).length;
-
-                const barCount = filteredChecks.length;
-                if (originalCount === barCount) {
-                  return `${barCount} bars`;
-                } else {
-                  return `${barCount} bars (${originalCount.toLocaleString()} checks)`;
-                }
-              })()}
-            </div>
           </div>
           {filteredChecks.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
@@ -381,15 +356,16 @@ export default function StatsDisplay() {
                 data={chartData}
                 barCategoryGap={-1}
                 barGap={-1}
+                margin={{ left: 60, right: 20, bottom: 20 }}
               >
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis
                   dataKey="timestamp"
                   tickFormatter={formatXAxisTime}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }}
+                  angle={0}
+                  height={60}
+                  interval="preserveStartEnd"
+                  tick={{ fill: 'hsl(var(--foreground))', fontSize: 10 }}
                   stroke="hsl(var(--border))"
                 />
                 <YAxis hide />
