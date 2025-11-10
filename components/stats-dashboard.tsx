@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useTransition } from 'react';
+import { useEffect, useState, useMemo, useTransition, useCallback, memo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -35,6 +35,249 @@ const formatDuration = (seconds: number) => {
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
 };
+
+// Memoized StatusCards component - only re-renders when stats values change
+const StatusCards = memo(({
+  activeOutage,
+  totalOutages,
+  totalDowntimeSec,
+  avgOutageDurationSec
+}: {
+  activeOutage: any;
+  totalOutages: number;
+  totalDowntimeSec: number;
+  avgOutageDurationSec: number;
+}) => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardDescription>Status</CardDescription>
+          <CardTitle className={activeOutage ? 'text-destructive' : 'text-success'}>
+            {activeOutage ? 'OFFLINE' : 'ONLINE'}
+          </CardTitle>
+        </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardDescription>Total Outages</CardDescription>
+          <CardTitle>{totalOutages}</CardTitle>
+        </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardDescription>Total Downtime</CardDescription>
+          <CardTitle>{formatDuration(totalDowntimeSec)}</CardTitle>
+        </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardDescription>Avg Outage</CardDescription>
+          <CardTitle>{formatDuration(avgOutageDurationSec)}</CardTitle>
+        </CardHeader>
+      </Card>
+    </div>
+  );
+});
+StatusCards.displayName = 'StatusCards';
+
+// Memoized NetworkInfo component - only re-renders when network info changes
+const NetworkInfoDisplay = memo(({ networkInfo }: { networkInfo: NetworkInfo | null }) => {
+  if (!networkInfo) return null;
+
+  return (
+    <div className="text-sm mt-2 space-y-0.5">
+      <div>
+        <span className="text-foreground font-bold">IP:</span>{' '}
+        <span className="text-muted-foreground">{networkInfo.ipv4}</span>
+      </div>
+      <div>
+        <span className="text-foreground font-bold">Location:</span>{' '}
+        <span className="text-muted-foreground">{networkInfo.city}, {networkInfo.region}</span>
+      </div>
+      <div>
+        <span className="text-foreground font-bold">Provider:</span>{' '}
+        <span className="text-muted-foreground">{networkInfo.isp}</span>
+      </div>
+    </div>
+  );
+});
+NetworkInfoDisplay.displayName = 'NetworkInfoDisplay';
+
+// Memoized TimePeriodButtons component - only re-renders when selected period changes
+const TimePeriodButtons = memo(({
+  timePeriod,
+  isPending,
+  onPeriodChange
+}: {
+  timePeriod: TimePeriod;
+  isPending: boolean;
+  onPeriodChange: (period: TimePeriod) => void;
+}) => {
+  const timePeriodLabels: Record<TimePeriod, string> = {
+    '5m': '5 Min',
+    '15m': '15 Min',
+    '1h': '1 Hour',
+    '6h': '6 Hours',
+    '24h': '24 Hours',
+    'all': 'All'
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {(['5m', '15m', '1h', '6h', '24h', 'all'] as TimePeriod[]).map(period => (
+        <Button
+          key={period}
+          onClick={() => onPeriodChange(period)}
+          disabled={isPending}
+          variant={timePeriod === period ? 'default' : 'outline'}
+          className={timePeriod === period ? 'bg-primary text-white hover:bg-primary/90' : ''}
+          size="sm"
+        >
+          {timePeriodLabels[period]}
+        </Button>
+      ))}
+    </div>
+  );
+});
+TimePeriodButtons.displayName = 'TimePeriodButtons';
+
+// Memoized TimelineChart component - only re-renders when filteredChecks or timePeriod changes
+const TimelineChart = memo(({
+  filteredChecks,
+  timePeriod
+}: {
+  filteredChecks: any[];
+  timePeriod: TimePeriod;
+}) => {
+  const formatXAxisTime = useCallback((time: any) => {
+    const date = new Date(time);
+    switch (timePeriod) {
+      case '5m':
+      case '15m':
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      case '1h':
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      case '6h':
+        return date.toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      case '24h':
+      case 'all':
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      default:
+        return date.toLocaleTimeString();
+    }
+  }, [timePeriod]);
+
+  if (filteredChecks.length === 0) {
+    return (
+      <div className="text-center py-16 text-muted-foreground">
+        No data available for this time period
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Timeline Bar */}
+      <div className="relative h-20 bg-muted rounded-lg overflow-hidden">
+        <div className="flex h-full">
+          {filteredChecks.map((check, index) => (
+            <div
+              key={index}
+              className="h-full transition-colors hover:opacity-80 cursor-pointer group relative"
+              style={{
+                width: `${100 / filteredChecks.length}%`,
+                backgroundColor: check.isConnected
+                  ? 'hsl(var(--success))'
+                  : 'hsl(var(--destructive))',
+              }}
+              title={`${new Date(check.timestamp).toLocaleString()}\n${
+                check.isConnected ? 'Connected' : 'Disconnected'
+              }`}
+            >
+              {/* Tooltip on hover */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
+                <div className="font-semibold">
+                  {check.isConnected ? 'Connected' : 'Disconnected'}
+                </div>
+                <div className="text-muted-foreground">
+                  {new Date(check.timestamp).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Time Labels */}
+      <div className="flex justify-between text-xs text-muted-foreground px-1">
+        <div>
+          {formatXAxisTime(filteredChecks[0]?.timestamp)}
+        </div>
+        <div>
+          {formatXAxisTime(filteredChecks[filteredChecks.length - 1]?.timestamp)}
+        </div>
+      </div>
+    </div>
+  );
+});
+TimelineChart.displayName = 'TimelineChart';
+
+// Memoized OutageHistoryTable component - only re-renders when outage history changes
+const OutageHistoryTable = memo(({ outageHistory }: { outageHistory: any[] }) => {
+  const outageColumns: ColumnDef<any>[] = useMemo(() => [
+    {
+      accessorKey: "startTime",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Start Time" />
+      ),
+      cell: ({ row }) => {
+        const date = new Date(row.getValue("startTime"));
+        return date.toLocaleString();
+      },
+    },
+    {
+      accessorKey: "endTime",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="End Time" />
+      ),
+      cell: ({ row }) => {
+        const date = new Date(row.getValue("endTime"));
+        return date.toLocaleString();
+      },
+    },
+    {
+      accessorKey: "durationSec",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Duration" />
+      ),
+      cell: ({ row }) => {
+        return formatDuration(row.getValue("durationSec"));
+      },
+    },
+  ], []);
+
+  if (outageHistory.length === 0) {
+    return (
+      <div className="text-center py-10 text-muted-foreground">
+        No outages recorded
+      </div>
+    );
+  }
+
+  return (
+    <DataTable
+      columns={outageColumns}
+      data={outageHistory}
+      searchKey="startTime"
+      searchPlaceholder="Search by date..."
+    />
+  );
+});
+OutageHistoryTable.displayName = 'OutageHistoryTable';
 
 export default function StatsDisplay() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -94,11 +337,11 @@ export default function StatsDisplay() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleTimePeriodChange = (period: TimePeriod) => {
+  const handleTimePeriodChange = useCallback((period: TimePeriod) => {
     startTransition(() => {
       setTimePeriod(period);
     });
-  };
+  }, [startTransition]);
 
   const filteredChecks = useMemo(() => {
     if (!stats) return [];
@@ -181,40 +424,6 @@ export default function StatsDisplay() {
     return downsampleData(filtered, maxBars);
   }, [stats, timePeriod]);
 
-  // Define columns for the outage history table
-  // This must be before any conditional returns to follow Rules of Hooks
-  const outageColumns: ColumnDef<any>[] = useMemo(() => [
-    {
-      accessorKey: "startTime",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Start Time" />
-      ),
-      cell: ({ row }) => {
-        const date = new Date(row.getValue("startTime"));
-        return date.toLocaleString();
-      },
-    },
-    {
-      accessorKey: "endTime",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="End Time" />
-      ),
-      cell: ({ row }) => {
-        const date = new Date(row.getValue("endTime"));
-        return date.toLocaleString();
-      },
-    },
-    {
-      accessorKey: "durationSec",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Duration" />
-      ),
-      cell: ({ row }) => {
-        return formatDuration(row.getValue("durationSec"));
-      },
-    },
-  ], []);
-
   if (loading) return <div className="p-5">Loading...</div>;
   if (!stats) return (
     <div className="p-5 text-destructive">
@@ -222,74 +431,15 @@ export default function StatsDisplay() {
     </div>
   );
 
-  // Don't set a fixed barSize - let Recharts calculate it to fill the width
-  // This ensures bars touch each other with no gaps
-
-  const timePeriodLabels: Record<TimePeriod, string> = {
-    '5m': '5 Min',
-    '15m': '15 Min',
-    '1h': '1 Hour',
-    '6h': '6 Hours',
-    '24h': '24 Hours',
-    'all': 'All'
-  };
-
-  const formatXAxisTime = (time: any) => {
-    const date = new Date(time);
-    switch (timePeriod) {
-      case '5m':
-      case '15m':
-        // Show time only with seconds
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      case '1h':
-        // Show time only
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      case '6h':
-        // Show short date + time
-        return date.toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      case '24h':
-      case 'all':
-        // Show date only
-        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-      default:
-        return date.toLocaleTimeString();
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {/* Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Status</CardDescription>
-            <CardTitle className={stats.activeOutage ? 'text-destructive' : 'text-success'}>
-              {stats.activeOutage ? 'OFFLINE' : 'ONLINE'}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Outages</CardDescription>
-            <CardTitle>{stats.totalOutages}</CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Downtime</CardDescription>
-            <CardTitle>{formatDuration(stats.totalDowntimeSec)}</CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Avg Outage</CardDescription>
-            <CardTitle>{formatDuration(stats.avgOutageDurationSec)}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      {/* Status Cards - Memoized */}
+      <StatusCards
+        activeOutage={stats.activeOutage}
+        totalOutages={stats.totalOutages}
+        totalDowntimeSec={stats.totalDowntimeSec}
+        avgOutageDurationSec={stats.avgOutageDurationSec}
+      />
 
       {/* Connection History Chart */}
       <Card className="relative">
@@ -305,37 +455,13 @@ export default function StatsDisplay() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <CardTitle>Recent Connection Status</CardTitle>
-              {networkInfo && (
-                <div className="text-sm mt-2 space-y-0.5">
-                  <div>
-                    <span className="text-foreground font-bold">IP:</span>{' '}
-                    <span className="text-muted-foreground">{networkInfo.ipv4}</span>
-                  </div>
-                  <div>
-                    <span className="text-foreground font-bold">Location:</span>{' '}
-                    <span className="text-muted-foreground">{networkInfo.city}, {networkInfo.region}</span>
-                  </div>
-                  <div>
-                    <span className="text-foreground font-bold">Provider:</span>{' '}
-                    <span className="text-muted-foreground">{networkInfo.isp}</span>
-                  </div>
-                </div>
-              )}
+              <NetworkInfoDisplay networkInfo={networkInfo} />
             </div>
-            <div className="flex flex-wrap gap-2">
-              {(['5m', '15m', '1h', '6h', '24h', 'all'] as TimePeriod[]).map(period => (
-                <Button
-                  key={period}
-                  onClick={() => handleTimePeriodChange(period)}
-                  disabled={isPending}
-                  variant={timePeriod === period ? 'default' : 'outline'}
-                  className={timePeriod === period ? 'bg-primary text-white hover:bg-primary/90' : ''}
-                  size="sm"
-                >
-                  {timePeriodLabels[period]}
-                </Button>
-              ))}
-            </div>
+            <TimePeriodButtons
+              timePeriod={timePeriod}
+              isPending={isPending}
+              onPeriodChange={handleTimePeriodChange}
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -349,58 +475,11 @@ export default function StatsDisplay() {
               <span>Disconnected</span>
             </div>
           </div>
-          {filteredChecks.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              No data available for this time period
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Timeline Bar */}
-              <div className="relative h-20 bg-muted rounded-lg overflow-hidden">
-                <div className="flex h-full">
-                  {filteredChecks.map((check, index) => (
-                    <div
-                      key={index}
-                      className="h-full transition-colors hover:opacity-80 cursor-pointer group relative"
-                      style={{
-                        width: `${100 / filteredChecks.length}%`,
-                        backgroundColor: check.isConnected
-                          ? 'hsl(var(--success))'
-                          : 'hsl(var(--destructive))',
-                      }}
-                      title={`${new Date(check.timestamp).toLocaleString()}\n${
-                        check.isConnected ? 'Connected' : 'Disconnected'
-                      }`}
-                    >
-                      {/* Tooltip on hover */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
-                        <div className="font-semibold">
-                          {check.isConnected ? 'Connected' : 'Disconnected'}
-                        </div>
-                        <div className="text-muted-foreground">
-                          {new Date(check.timestamp).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Time Labels */}
-              <div className="flex justify-between text-xs text-muted-foreground px-1">
-                <div>
-                  {formatXAxisTime(filteredChecks[0]?.timestamp)}
-                </div>
-                <div>
-                  {formatXAxisTime(filteredChecks[filteredChecks.length - 1]?.timestamp)}
-                </div>
-              </div>
-            </div>
-          )}
+          <TimelineChart filteredChecks={filteredChecks} timePeriod={timePeriod} />
         </CardContent>
       </Card>
 
-      {/* Outage History Table */}
+      {/* Outage History Table - Memoized */}
       <Card>
         <CardHeader>
           <CardTitle>Outage History</CardTitle>
@@ -409,18 +488,7 @@ export default function StatsDisplay() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {stats.outageHistory.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              No outages recorded
-            </div>
-          ) : (
-            <DataTable
-              columns={outageColumns}
-              data={stats.outageHistory}
-              searchKey="startTime"
-              searchPlaceholder="Search by date..."
-            />
-          )}
+          <OutageHistoryTable outageHistory={stats.outageHistory} />
         </CardContent>
       </Card>
     </div>
