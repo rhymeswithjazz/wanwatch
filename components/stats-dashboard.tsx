@@ -40,7 +40,7 @@ export default function StatsDisplay() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('15m');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('24h');
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -318,6 +318,7 @@ export default function StatsDisplay() {
                   onClick={() => handleTimePeriodChange(period)}
                   disabled={isPending}
                   variant={timePeriod === period ? 'default' : 'outline'}
+                  className={timePeriod === period ? 'bg-primary text-white hover:bg-primary/90' : ''}
                   size="sm"
                 >
                   {timePeriodLabels[period]}
