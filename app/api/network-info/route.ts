@@ -18,10 +18,11 @@ export async function GET() {
     console.log('Fetching fresh network info...');
 
     // Fetch IPv4 and IPv6 addresses separately, plus geo info
+    // Using ip-api.com for geolocation (better rate limits: 45 req/min vs ipapi.co's daily limits)
     const [ipv4Response, ipv6Response, geoResponse] = await Promise.allSettled([
       fetch('https://api.ipify.org?format=json', { cache: 'no-store' }),
       fetch('https://api6.ipify.org?format=json', { cache: 'no-store' }),
-      fetch('https://ipapi.co/json/', { cache: 'no-store' })
+      fetch('http://ip-api.com/json/?fields=status,message,city,region,country,org,timezone,as', { cache: 'no-store' })
     ]);
 
     let ipv4 = 'N/A';
@@ -40,13 +41,42 @@ export async function GET() {
       ipv6 = data.ip || 'N/A';
     }
 
-    // Get geo info
+    // Get geo info from ip-api.com
     if (geoResponse.status === 'fulfilled' && geoResponse.value.ok) {
-      geoData = await geoResponse.value.json();
-    } else if (cachedNetworkInfo) {
-      // If geo fetch fails but we have cache, use cached geo data
-      console.log('Geo fetch failed, using cached geo data');
-      geoData = cachedNetworkInfo;
+      const rawGeoData = await geoResponse.value.json();
+
+      // ip-api.com uses different field names, so normalize them
+      if (rawGeoData.status === 'success') {
+        geoData = {
+          city: rawGeoData.city,
+          region: rawGeoData.region, // This is the state code (e.g., "GA")
+          country_name: rawGeoData.country,
+          org: rawGeoData.org,
+          timezone: rawGeoData.timezone,
+          asn: rawGeoData.as
+        };
+        console.log('Geo data fetched successfully:', { city: geoData.city, region: geoData.region, country: geoData.country_name });
+      } else {
+        console.error('Geo API returned error:', rawGeoData.message);
+        if (cachedNetworkInfo) {
+          console.log('Using cached geo data');
+          geoData = cachedNetworkInfo;
+        }
+      }
+    } else {
+      if (geoResponse.status === 'rejected') {
+        console.error('Geo fetch rejected:', geoResponse.reason);
+      } else if (geoResponse.status === 'fulfilled' && !geoResponse.value.ok) {
+        console.error('Geo fetch failed with status:', geoResponse.value.status, geoResponse.value.statusText);
+        const errorText = await geoResponse.value.text();
+        console.error('Geo fetch error response:', errorText);
+      }
+
+      if (cachedNetworkInfo) {
+        // If geo fetch fails but we have cache, use cached geo data
+        console.log('Geo fetch failed, using cached geo data');
+        geoData = cachedNetworkInfo;
+      }
     }
 
     console.log('Network info fetched - IPv4:', ipv4, 'IPv6:', ipv6);

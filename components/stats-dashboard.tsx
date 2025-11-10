@@ -306,8 +306,19 @@ export default function StatsDisplay() {
             <div>
               <CardTitle>Recent Connection Status</CardTitle>
               {networkInfo && (
-                <div className="text-sm text-muted-foreground mt-1">
-                  {networkInfo.ipv4} • {networkInfo.city}, {networkInfo.region}
+                <div className="text-sm mt-2 space-y-0.5">
+                  <div>
+                    <span className="text-white font-bold">IP:</span>{' '}
+                    <span className="text-muted-foreground">{networkInfo.ipv4}</span>
+                  </div>
+                  <div>
+                    <span className="text-white font-bold">Location:</span>{' '}
+                    <span className="text-muted-foreground">{networkInfo.city}, {networkInfo.region}</span>
+                  </div>
+                  <div>
+                    <span className="text-white font-bold">Provider:</span>{' '}
+                    <span className="text-muted-foreground">{networkInfo.isp}</span>
+                  </div>
                 </div>
               )}
             </div>
