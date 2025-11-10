@@ -8,7 +8,7 @@ export const size = {
 
 export const contentType = 'image/png';
 
-// Image generation - Radio/Signal icon for WAN monitoring
+// Image generation - ChevronsLeftRightEllipsis icon matching logo.tsx
 export default function Icon() {
   return new ImageResponse(
     (
@@ -36,11 +36,11 @@ export default function Icon() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <circle cx="12" cy="12" r="2" fill="white" />
-          <path d="M4.93 19.07a10 10 0 0 1 0-14.14" />
-          <path d="M7.76 16.24a6 6 0 0 1 0-8.49" />
-          <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          <path d="m18 8 4 4-4 4" />
+          <path d="m6 8-4 4 4 4" />
+          <path d="M8 12h.01" />
+          <path d="M12 12h.01" />
+          <path d="M16 12h.01" />
         </svg>
       </div>
     ),
