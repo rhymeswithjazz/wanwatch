@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -182,14 +181,6 @@ export default function StatsDisplay() {
     return downsampleData(filtered, maxBars);
   }, [stats, timePeriod]);
 
-  const chartData = useMemo(() => {
-    // Keep newest on the left (no reverse - data comes DESC from API)
-    return filteredChecks.map(check => ({
-      ...check,
-      status: 1
-    }));
-  }, [filteredChecks]);
-
   // Define columns for the outage history table
   // This must be before any conditional returns to follow Rules of Hooks
   const outageColumns: ColumnDef<any>[] = useMemo(() => [
@@ -351,50 +342,48 @@ export default function StatsDisplay() {
               No data available for this time period
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={300} key={`${timePeriod}-${filteredChecks.length}`}>
-              <BarChart
-                data={chartData}
-                barCategoryGap={-1}
-                barGap={-1}
-                margin={{ left: 60, right: 20, bottom: 20 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis
-                  dataKey="timestamp"
-                  tickFormatter={formatXAxisTime}
-                  angle={0}
-                  height={60}
-                  interval="preserveStartEnd"
-                  tick={{ fill: 'hsl(var(--foreground))', fontSize: 10 }}
-                  stroke="hsl(var(--border))"
-                />
-                <YAxis hide />
-                <Tooltip
-                  labelFormatter={(time) => new Date(time).toLocaleString()}
-                  formatter={(value: any, name: any, props: any) => {
-                    const isConnected = props.payload.isConnected;
-                    return [isConnected ? 'Connected' : 'Disconnected', 'Status'];
-                  }}
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--popover))',
-                    borderColor: 'hsl(var(--border))',
-                    color: 'hsl(var(--popover-foreground))'
-                  }}
-                />
-                <Bar
-                  dataKey="status"
-                  isAnimationActive={false}
-                  maxBarSize={1000}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={entry.isConnected ? 'hsl(var(--success))' : 'hsl(var(--destructive))'}
-                    />
+            <div className="space-y-3">
+              {/* Timeline Bar */}
+              <div className="relative h-20 bg-muted rounded-lg overflow-hidden">
+                <div className="flex h-full">
+                  {filteredChecks.map((check, index) => (
+                    <div
+                      key={index}
+                      className="h-full transition-colors hover:opacity-80 cursor-pointer group relative"
+                      style={{
+                        width: `${100 / filteredChecks.length}%`,
+                        backgroundColor: check.isConnected
+                          ? 'hsl(var(--success))'
+                          : 'hsl(var(--destructive))',
+                      }}
+                      title={`${new Date(check.timestamp).toLocaleString()}\n${
+                        check.isConnected ? 'Connected' : 'Disconnected'
+                      }`}
+                    >
+                      {/* Tooltip on hover */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
+                        <div className="font-semibold">
+                          {check.isConnected ? 'Connected' : 'Disconnected'}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {new Date(check.timestamp).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Time Labels */}
+              <div className="flex justify-between text-xs text-muted-foreground px-1">
+                <div>
+                  {formatXAxisTime(filteredChecks[0]?.timestamp)}
+                </div>
+                <div>
+                  {formatXAxisTime(filteredChecks[filteredChecks.length - 1]?.timestamp)}
+                </div>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
