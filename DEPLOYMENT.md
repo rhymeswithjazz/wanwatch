@@ -55,13 +55,13 @@ Build the image on your local machine and push to Docker Hub or Synology's local
    DATABASE_URL=file:/app/data/wanwatch.db
    NEXTAUTH_SECRET=<paste-generated-secret-here>
    NEXTAUTH_URL=http://<YOUR-SYNOLOGY-IP>:3000
-   SMTP_HOST=smtp.fastmail.com
+   SMTP_HOST=smtp.example.com
    SMTP_PORT=465
    SMTP_SECURE=true
-   SMTP_USER=ras@rhymeswithjazz.com
+   SMTP_USER=your-email@example.com
    SMTP_PASS=your-smtp-app-password
-   EMAIL_FROM=no-reply@rhymeswithjazz.com
-   EMAIL_TO=ras@rhymeswithjazz.com
+   EMAIL_FROM=no-reply@example.com
+   EMAIL_TO=your-email@example.com
    APP_URL=http://<YOUR-SYNOLOGY-IP>:3000
    CHECK_INTERVAL_SECONDS=30
    ```
