@@ -11,6 +11,7 @@ A self-contained WAN monitoring application that runs in Docker, periodically ch
 - 💾 SQLite database for data persistence
 - 🐳 Docker-ready with volume persistence
 - 📈 Historical outage tracking and visualization
+- 📝 Structured logging system with searchable web UI
 
 ## Technology Stack
 
@@ -21,6 +22,7 @@ A self-contained WAN monitoring application that runs in Docker, periodically ch
 - **NextAuth.js v5** - Authentication
 - **Nodemailer** - Email notifications
 - **Recharts** - Data visualization
+- **Pino** - Structured logging
 - **Node-cron** - Task scheduling
 
 ## Quick Start
@@ -207,6 +209,24 @@ npm run create-user admin@example.com mypassword "Admin User"
 - **Statistics Cards** - Total outages, total downtime, average outage duration
 - **Connection History Chart** - Visual timeline of recent connectivity checks
 - **Outage History Table** - Detailed log of past outages with timestamps and durations
+- **System Logs** - Searchable, filterable view of application logs with JSON metadata
+
+### System Logs
+
+Access comprehensive application logs at `/logs`:
+
+- **Structured Logging** - All important events logged with Pino (JSON format)
+- **Database Persistence** - WARN, ERROR, and CRITICAL logs stored in database
+- **Web UI** - Search and filter logs by level, message content, and time
+- **Auto-refresh** - Logs update every 30 seconds
+- **Metadata Viewing** - Expandable JSON metadata for each log entry
+- **Event Types Logged:**
+  - Connectivity checks (failures only)
+  - Outage start/resolution events
+  - Email notifications (success/failure)
+  - Authentication events
+  - HTTP requests (4xx/5xx errors)
+  - Application lifecycle events
 
 ## Database Schema
 
@@ -239,12 +259,22 @@ docker cp wanwatch:/app/data/wanwatch.db ./backup-$(date +%Y%m%d).db
 ### View Logs
 
 ```bash
-# Docker logs
+# Docker container logs (stdout/stderr)
 docker logs -f wanwatch
 
-# System logs (in database)
-# Access via Prisma Studio or database viewer
+# Application logs
+# Option 1: Web UI (recommended)
+# Navigate to http://your-url:3000/logs after logging in
+
+# Option 2: Database viewer
 npx prisma studio
+# Browse SystemLog table
+
+# Option 3: Direct database query
+docker exec -it wanwatch sh
+npx prisma db execute --stdin <<EOF
+SELECT timestamp, level, message FROM SystemLog ORDER BY timestamp DESC LIMIT 50;
+EOF
 ```
 
 ### Update Application
@@ -300,19 +330,27 @@ services:
 wanwatch/
 ├── app/
 │   ├── api/              # API routes
+│   │   ├── stats/        # Dashboard statistics
+│   │   ├── logs/         # System logs API
+│   │   └── health/       # Health check
 │   ├── dashboard/        # Dashboard page
 │   ├── login/           # Login page
+│   ├── logs/            # Logs viewer page
 │   └── layout.tsx       # Root layout
 ├── components/          # React components
+│   ├── stats-dashboard.tsx
+│   └── logs-viewer.tsx
 ├── lib/
 │   ├── monitoring/      # Monitoring logic
 │   ├── auth.ts         # Authentication config
-│   └── db.ts           # Prisma client
+│   ├── db.ts           # Prisma client
+│   └── logger.ts       # Logging infrastructure
 ├── prisma/
 │   ├── schema.prisma   # Database schema
 │   └── migrations/     # Database migrations
 ├── scripts/
-│   └── create-user.ts  # User creation script
+│   ├── create-user.ts  # User creation script
+│   └── seed-data.ts    # Test data generator
 ├── Dockerfile
 ├── docker-compose.yml
 └── README.md

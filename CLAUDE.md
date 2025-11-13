@@ -67,15 +67,19 @@ Next.js 15 App Router (React 19 + TypeScript)
 │   ├── startup.ts              # Monitoring initialization (server-side only)
 │   ├── dashboard/page.tsx      # Protected dashboard (server component)
 │   ├── login/page.tsx          # Login page
+│   ├── logs/page.tsx           # System logs viewer page
 │   └── api/
 │       ├── auth/[...nextauth]/ # NextAuth.js endpoints
 │       ├── stats/route.ts      # Dashboard data endpoint
+│       ├── logs/route.ts       # Logs API endpoint
 │       └── health/route.ts     # Docker healthcheck
 ├── components/
-│   └── stats-dashboard.tsx     # Client component with charts (Recharts)
+│   ├── stats-dashboard.tsx     # Client component with charts (Recharts)
+│   └── logs-viewer.tsx         # Client component for log viewing
 ├── lib/
 │   ├── auth.ts                 # NextAuth v5 config (credentials provider)
 │   ├── db.ts                   # Prisma singleton client
+│   ├── logger.ts               # Structured logging (Pino + database)
 │   └── monitoring/
 │       ├── scheduler.ts        # setInterval-based monitoring loop
 │       ├── connectivity-checker.ts  # Ping logic + outage tracking
@@ -118,6 +122,44 @@ Next.js 15 App Router (React 19 + TypeScript)
      - Last 50,000 ConnectionCheck records (for time-series chart)
      - Last 50 Outage records (for history table)
      - Aggregates: total outages, total downtime, average duration
+
+### Logging System (Pino + Database)
+
+**Hybrid Approach**: Console logging (Pino) + selective database persistence
+
+**Implementation** (`lib/logger.ts`):
+- **Pino Logger**: Structured JSON logging to stdout (no pino-pretty transport to avoid worker thread issues)
+- **Log Levels**: DEBUG, INFO, WARN, ERROR, CRITICAL
+- **Smart Persistence**: Only WARN, ERROR, and CRITICAL written to SystemLog table (prevents database bloat)
+- **Specialized Log Methods**:
+  - `logRequest()` - HTTP request logging with duration
+  - `logConnectivityCheck()` - Network check results (failures only to DB)
+  - `logOutage()` - Outage start/resolution events
+  - `logEmail()` - Email notification success/failure
+  - `logAuth()` - Authentication events
+  - `logLifecycle()` - Application startup/shutdown
+  - `withTiming()` - Performance measurement wrapper
+
+**Log Viewer** (`/logs` page):
+- **API Endpoint**: `/api/logs` with pagination and filtering
+- **Client Component**: `logs-viewer.tsx` with SWR (30s refresh interval)
+- **Features**:
+  - Search by message content
+  - Filter by log level (DEBUG, INFO, WARN, ERROR, CRITICAL)
+  - Expandable JSON metadata for each entry
+  - Color-coded level badges
+  - Auto-refresh with deduplication
+
+**Where Logging is Used**:
+- Monitoring system (scheduler, connectivity checks, outages)
+- Email notifications (success/failure tracking)
+- Authentication events (login/logout)
+- API routes (request logging for 4xx/5xx responses)
+- Application lifecycle (startup)
+
+**Development vs Production**:
+- Development: `level: 'debug'` - all logs to console
+- Production: `level: 'info'` - structured JSON to stdout/container logs
 
 ### Database Schema (Prisma + SQLite)
 
@@ -215,8 +257,9 @@ Next.js 15 App Router (React 19 + TypeScript)
 
 1. Monitoring runs in background (server-side setInterval loop)
 2. Dashboard polls `/api/stats` every 30s (client-side)
-3. All database writes go through Prisma in server context
-4. No client-side database access
+3. Logs viewer polls `/api/logs` every 30s (client-side, with deduplication)
+4. All database writes go through Prisma in server context
+5. No client-side database access
 
 ### Error Handling
 
@@ -279,6 +322,21 @@ cap_add:
 - Verify monitoring loop started (check startup logs)
 - Run seed script to populate test data: `npm run seed-data`
 
+### 8. Logs Page Slow or Hitting API Too Often
+
+The logs viewer uses SWR with a 30-second refresh interval and 10-second deduplication:
+- If still too frequent, increase `refreshInterval` in `components/logs-viewer.tsx`
+- Consider increasing page size if database queries are slow
+- SystemLog table only stores WARN/ERROR/CRITICAL by design to prevent bloat
+
+### 9. Pino Worker Thread Errors (Historical)
+
+If you see "the worker has exited" errors:
+- This was fixed by removing pino-pretty transport
+- Pino now outputs plain JSON to stdout (no pretty-printing)
+- For development, pipe through pino-pretty externally: `npm run dev | pino-pretty`
+- Never add pino-pretty as a transport in logger configuration
+
 ## Code Modification Guidelines
 
 ### Adding New Monitoring Targets
@@ -312,6 +370,37 @@ Edit `lib/monitoring/email-notifier.ts` → `sendOutageRestoredEmail()` function
 1. Modify `/api/stats/route.ts` to add new aggregations
 2. Update `components/stats-dashboard.tsx` to display them
 3. TypeScript will enforce type safety from API to component
+
+### Adding Logging to New Features
+
+Use the centralized logger from `lib/logger.ts`:
+
+```typescript
+import { logger } from '@/lib/logger';
+
+// Simple logging
+logger.debug('Debug message', { key: 'value' });
+logger.info('Info message');
+await logger.warn('Warning message', { metadata: 'optional' });
+await logger.error('Error occurred', { error: err.message });
+
+// Specialized logging methods
+await logger.logRequest('GET', '/api/endpoint', 200, 45);
+await logger.logAuth('login_success', 'user@example.com');
+await logger.logEmail('success', 'recipient@example.com', 'Subject');
+
+// Performance timing
+const result = await logger.withTiming('Operation name', async () => {
+  // Your async operation here
+  return result;
+});
+```
+
+**Important**:
+- DEBUG/INFO only go to console (not database)
+- WARN/ERROR/CRITICAL are persisted to SystemLog table
+- Always await async log methods (warn, error, critical, specialized methods)
+- Include relevant metadata as second parameter for debugging context
 
 ## Testing Notes
 
@@ -348,6 +437,22 @@ Edit `lib/monitoring/email-notifier.ts` → `sendOutageRestoredEmail()` function
 - Reduces noise (you know when you're down)
 - More actionable notification (tells you it's fixed)
 - Prevents email spam during extended outages
+
+### Why Pino for Logging?
+
+- Fast and low-overhead (minimal performance impact)
+- Structured JSON logging (easily parseable by log aggregators)
+- Works well in containerized environments (stdout/stderr)
+- No dependencies on worker threads (pino-pretty removed to avoid issues)
+- Industry standard for Node.js applications
+
+### Why Hybrid Logging (Console + Database)?
+
+- **Console (Pino)**: All logs for development debugging and container log aggregation
+- **Database (SystemLog)**: Persistent storage of important events (WARN/ERROR/CRITICAL only)
+- **Selective Persistence**: Prevents database bloat from verbose DEBUG/INFO logs
+- **Web UI**: Easy searching and filtering without SSH access to containers
+- **Best of both worlds**: Real-time stdout logs + queryable historical logs
 
 ## Security Considerations
 
