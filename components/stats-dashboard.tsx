@@ -288,7 +288,7 @@ export default function StatsDisplay() {
     fetcher,
     {
       refreshInterval: 600000, // 10 minutes
-      revalidateOnFocus: false,
+      revalidateOnFocus: true, // Refresh when tab gains focus
       dedupingInterval: 60000,
     }
   );
