@@ -1,10 +1,23 @@
 import { NextResponse } from 'next/server';
 import { NetworkInfo, GeoData } from '@/types/dashboard';
 
-// Cache the network info for 10 minutes to avoid hitting rate limits
+// ip-api.com response type
+interface IpApiResponse {
+  status: 'success' | 'fail';
+  message?: string;
+  city?: string;
+  region?: string;
+  country?: string;
+  org?: string;
+  timezone?: string;
+  as?: string;
+}
+
+// Cache the network info to avoid hitting rate limits
 let cachedNetworkInfo: NetworkInfo | null = null;
 let cacheTimestamp: number = 0;
-const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+const CACHE_DURATION_MS = parseInt(process.env.NETWORK_INFO_CACHE_SECONDS || '600') * 1000;
+const FETCH_TIMEOUT = 5000; // 5 seconds
 
 export async function GET() {
   try {
@@ -13,17 +26,31 @@ export async function GET() {
     // Return cached data if it's still valid
     if (cachedNetworkInfo && (now - cacheTimestamp) < CACHE_DURATION_MS) {
       console.log('Returning cached network info (age: ' + Math.round((now - cacheTimestamp) / 1000) + 's)');
-      return NextResponse.json(cachedNetworkInfo);
+      return NextResponse.json(cachedNetworkInfo, {
+        headers: {
+          'Cache-Control': 'private, max-age=600, stale-while-revalidate=300',
+        },
+      });
     }
 
     console.log('Fetching fresh network info...');
 
     // Fetch IPv4 and IPv6 addresses separately, plus geo info
     // Using ip-api.com for geolocation (better rate limits: 45 req/min vs ipapi.co's daily limits)
+    // Note: ip-api.com free tier only supports HTTP (HTTPS requires paid plan)
     const [ipv4Response, ipv6Response, geoResponse] = await Promise.allSettled([
-      fetch('https://api.ipify.org?format=json', { cache: 'no-store' }),
-      fetch('https://api6.ipify.org?format=json', { cache: 'no-store' }),
-      fetch('http://ip-api.com/json/?fields=status,message,city,region,country,org,timezone,as', { cache: 'no-store' })
+      fetch('https://api.ipify.org?format=json', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(FETCH_TIMEOUT)
+      }),
+      fetch('https://api6.ipify.org?format=json', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(FETCH_TIMEOUT)
+      }),
+      fetch('http://ip-api.com/json/?fields=status,message,city,region,country,org,timezone,as', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(FETCH_TIMEOUT)
+      })
     ]);
 
     let ipv4 = 'N/A';
@@ -44,7 +71,7 @@ export async function GET() {
 
     // Get geo info from ip-api.com
     if (geoResponse.status === 'fulfilled' && geoResponse.value.ok) {
-      const rawGeoData = await geoResponse.value.json();
+      const rawGeoData: IpApiResponse = await geoResponse.value.json();
 
       // ip-api.com uses different field names, so normalize them
       if (rawGeoData.status === 'success') {
@@ -95,7 +122,11 @@ export async function GET() {
     };
     cacheTimestamp = now;
 
-    return NextResponse.json(cachedNetworkInfo);
+    return NextResponse.json(cachedNetworkInfo, {
+      headers: {
+        'Cache-Control': 'private, max-age=600, stale-while-revalidate=300',
+      },
+    });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in network-info API:', errorMessage);
@@ -103,7 +134,11 @@ export async function GET() {
     // Return stale cache if available
     if (cachedNetworkInfo) {
       console.log('Returning stale cache due to error');
-      return NextResponse.json(cachedNetworkInfo);
+      return NextResponse.json(cachedNetworkInfo, {
+        headers: {
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=30',
+        },
+      });
     }
 
     return NextResponse.json({
