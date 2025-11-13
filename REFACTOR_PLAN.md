@@ -2,9 +2,9 @@
 
 **Created**: 2025-11-12
 **Branch**: `refactor/code-quality-improvements`
-**Status**: Phase 3 Complete - Ready for Phase 4
+**Status**: Phase 4 In Progress - Nearing Completion
 **Last Updated**: 2025-11-12
-**Overall Progress**: 75% Complete (3 of 4 phases done)
+**Overall Progress**: 90% Complete (Phase 4: 3 of 6 tasks done, 2 optional remaining)
 
 ---
 
@@ -21,12 +21,16 @@
 - ✨ **~160 lines of code removed** (80 from downsampling + 80 from manual fetch logic)
 - ✨ TypeScript compiler: **0 errors**
 - ✨ Production build: **Successful**
+- ✨ **Environment validation** - Zod schema validates all config on startup
+- ✨ **Type-safe env access** - No more `process.env` scattered throughout code
 
 **Developer Experience**:
 - 💡 Better IDE autocomplete and IntelliSense
 - 💡 Compile-time error detection
 - 💡 Centralized authentication logic
 - 💡 Automatic request deduplication and caching
+- 💡 Clear error messages for invalid environment config
+- 💡 Fail-fast on startup prevents runtime issues
 
 **User Experience**:
 - 🎨 Loading states with skeleton UI
@@ -128,18 +132,41 @@
 
 ---
 
-### 🔄 Phase 4: Code Quality & Polish (PENDING)
-**Status**: Not Started
+### 🔄 Phase 4: Code Quality & Polish (IN PROGRESS)
+**Commits**:
+- `40f94a9` - "refactor: improve network-info API with timeouts and caching"
+- `ef04e88` - "fix: enable network info revalidation on focus"
+- `44f5535` - "refactor: add environment variable validation with Zod and clean up Button component"
+**Started**: 2025-11-12
 
-**Planned Work**:
-- ~~Move column definitions to module level~~ ✅ (Completed in Phase 3)
-- Add environment variable validation with Zod
-- Fix unused `asChild` prop in Button component
-- Add stricter TypeScript compiler flags (optional)
-- Optimize date formatting with Intl API (optional)
-- Update documentation
+**Completed Work**:
+- ✅ ~~Move column definitions to module level~~ (Completed in Phase 3)
+- ✅ Improved network-info API with fetch timeouts and type safety
+- ✅ Fixed network info caching issue (revalidateOnFocus)
+- ✅ Add environment variable validation with Zod
+- ✅ Fix unused `asChild` prop in Button component
 
-**Note**: Some Phase 4 optimizations were completed during Phase 3 for better code organization.
+**Remaining Work**:
+- ⏳ Add stricter TypeScript compiler flags (optional)
+- ⏳ Optimize date formatting with Intl API (optional)
+- ⏳ Update documentation
+
+**Achievements So Far**:
+- Created comprehensive Zod schema for all environment variables
+- Fail-fast validation on startup with clear error messages
+- Updated 5 files to use validated env instead of process.env
+- Fixed HTTP/HTTPS issue with ip-api.com (free tier requires HTTP)
+- Added 5-second fetch timeouts to prevent hanging requests
+- Added Cache-Control headers for better client-side caching
+- Made cache duration configurable via environment variable
+- Removed unused Button component prop for cleaner interface
+
+**Impact**:
+- Type-safe environment variable access throughout application
+- Better error messages for misconfigured deployments
+- Prevents hanging requests with proper timeouts
+- Fixed "Unknown" location/provider display issue
+- Cleaner component interfaces
 
 ---
 
@@ -1876,28 +1903,28 @@ After 1 week of production use:
 - ✅ `app/dashboard/loading.tsx` - Loading state (Phase 3)
 - ✅ `app/dashboard/error.tsx` - Error boundary (Phase 3)
 - ✅ `app/login/layout.tsx` - Login page metadata (Phase 3)
-
-### Files To Create (Phase 4)
-- ⏳ `lib/env.ts` - Environment validation with Zod
+- ✅ `lib/env.ts` - Environment validation with Zod (Phase 4)
 
 ### Files Modified ✅
 - ✅ `components/stats-dashboard.tsx` - Removed downsampling, added types, implemented SWR (Phases 1-3)
 - ✅ `app/api/stats/route.ts` - Reduced data fetching (Phase 2)
-- ✅ `app/api/network-info/route.ts` - Fixed types (Phase 1)
+- ✅ `app/api/network-info/route.ts` - Fixed types, added timeouts, Cache-Control headers (Phases 1 & 4)
 - ✅ `app/dashboard/page.tsx` - Simplified auth logic, added metadata (Phase 3)
 - ✅ `app/layout.tsx` - Enhanced metadata (Phase 3)
+- ✅ `app/startup.ts` - Use validated env (Phase 4)
 - ✅ `prisma/schema.prisma` - Added indexes (Phase 2)
-- ✅ `package.json` - Added SWR dependency (Phase 3)
+- ✅ `package.json` - Added SWR and Zod dependencies (Phases 3 & 4)
+- ✅ `components/ui/button.tsx` - Removed unused `asChild` prop (Phase 4)
+- ✅ `lib/monitoring/scheduler.ts` - Use validated env (Phase 4)
+- ✅ `lib/monitoring/email-notifier.ts` - Use validated env (Phase 4)
 
-### Files To Modify (Phase 4)
-- ⏳ `components/ui/button.tsx` - Fix unused `asChild` prop
+### Files To Modify (Phase 4 - Optional)
 - ⏳ `tsconfig.json` - Add stricter flags (optional)
+- ⏳ `components/stats-dashboard.tsx` - Optimize date formatting with Intl API (optional)
 - ⏳ Documentation files - Update README, DEPLOYMENT.md, etc.
 
 ### Files Not Modified (Working As Designed)
-- ✅ `lib/monitoring/scheduler.ts` - Already well implemented
 - ✅ `lib/monitoring/connectivity-checker.ts` - Working as designed
-- ✅ `lib/monitoring/email-notifier.ts` - Working as designed
 - ✅ `components/ui/data-table.tsx` - Working as designed
 
 ---
