@@ -4,7 +4,6 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isOnDashboard = req.nextUrl.pathname.startsWith('/dashboard');
   const isOnLogin = req.nextUrl.pathname.startsWith('/login');
-  const isOnApi = req.nextUrl.pathname.startsWith('/api');
 
   // Protect dashboard - redirect to login if not authenticated
   if (!isLoggedIn && isOnDashboard) {
@@ -18,10 +17,8 @@ export default auth((req) => {
     return Response.redirect(new URL('/dashboard', req.nextUrl.origin));
   }
 
-  // API routes handle their own auth
-  if (isOnApi) {
-    return;
-  }
+  // Allow request to proceed (API routes handle their own auth)
+  return;
 });
 
 export const config = {

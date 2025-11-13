@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { prisma } from '@/lib/db';
 import { getErrorMessage } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 const execAsync = promisify(exec);
 
@@ -39,7 +40,7 @@ export class ConnectivityChecker {
       try {
         const result = await this.pingTarget(target);
         if (result.isConnected) {
-          // Log successful check
+          // Log successful check to database
           await prisma.connectionCheck.create({
             data: {
               timestamp,
@@ -49,21 +50,18 @@ export class ConnectivityChecker {
             }
           });
 
+          // Log connectivity success
+          await logger.logConnectivityCheck(target, true, result.latencyMs);
+
           return { ...result, timestamp, target };
         }
       } catch (error: unknown) {
         const errorMessage = getErrorMessage(error);
-        console.error(`Failed to ping ${target}:`, errorMessage);
 
-        await prisma.systemLog.create({
-          data: {
-            level: 'WARN',
-            message: `Ping failed for ${target}`,
-            metadata: JSON.stringify({ error: errorMessage })
-          }
-        }).catch(err => {
-          // Don't let logging errors break the monitoring loop
-          console.error('Failed to log ping error:', getErrorMessage(err));
+        // Log ping failure
+        await logger.warn(`Ping failed for ${target}`, {
+          target,
+          error: errorMessage
         });
       }
     }
@@ -75,6 +73,11 @@ export class ConnectivityChecker {
         isConnected: false,
         target: 'all-targets-failed'
       }
+    });
+
+    // Log connectivity failure
+    await logger.logConnectivityCheck('all-targets', false, null, {
+      targetsAttempted: this.targets.length
     });
 
     return {
@@ -91,7 +94,7 @@ export class ConnectivityChecker {
 
       // Parse latency from ping output
       const match = stdout.match(/time=(\d+\.?\d*)/);
-      const latencyMs = match ? parseFloat(match[1]) : null;
+      const latencyMs = match?.[1] ? parseFloat(match[1]) : null;
 
       return {
         isConnected: true,
@@ -113,19 +116,16 @@ export class ConnectivityChecker {
 
     if (!result.isConnected && !activeOutage) {
       // New outage detected
-      await prisma.outage.create({
+      const newOutage = await prisma.outage.create({
         data: {
           startTime: result.timestamp,
           checksCount: 1
         }
       });
 
-      await prisma.systemLog.create({
-        data: {
-          level: 'ERROR',
-          message: 'WAN connection lost',
-          metadata: JSON.stringify({ timestamp: result.timestamp })
-        }
+      // Log critical outage event
+      await logger.logOutage('started', newOutage.id.toString(), undefined, {
+        timestamp: result.timestamp.toISOString()
       });
     } else if (!result.isConnected && activeOutage) {
       // Outage continues
@@ -134,6 +134,11 @@ export class ConnectivityChecker {
         data: {
           checksCount: { increment: 1 }
         }
+      });
+
+      logger.debug('Outage continues', {
+        outageId: activeOutage.id,
+        checksCount: activeOutage.checksCount + 1
       });
     } else if (result.isConnected && activeOutage) {
       // Connection restored
@@ -150,15 +155,10 @@ export class ConnectivityChecker {
         }
       });
 
-      await prisma.systemLog.create({
-        data: {
-          level: 'INFO',
-          message: 'WAN connection restored',
-          metadata: JSON.stringify({
-            duration: durationSec,
-            timestamp: result.timestamp
-          })
-        }
+      // Log outage resolution
+      await logger.logOutage('resolved', activeOutage.id.toString(), durationSec, {
+        startTime: activeOutage.startTime.toISOString(),
+        endTime: result.timestamp.toISOString()
       });
 
       // Trigger email notification

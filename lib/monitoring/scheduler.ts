@@ -1,12 +1,13 @@
 import { ConnectivityChecker } from './connectivity-checker';
 import { getErrorMessage } from '@/lib/utils';
 import { env } from '@/lib/env';
+import { logger } from '@/lib/logger';
 
 let scheduledTask: NodeJS.Timeout | null = null;
 
 export function startMonitoring(): void {
   if (scheduledTask) {
-    console.log('Monitoring already running');
+    logger.debug('Monitoring already running');
     return;
   }
 
@@ -16,14 +17,24 @@ export function startMonitoring(): void {
 
   // Run connectivity check function
   const runCheck = async () => {
-    console.log('Running connectivity check...');
+    logger.debug('Running connectivity check...');
     try {
-      const result = await checker.checkConnection();
-      await checker.handleConnectionStatus(result);
-      console.log(`Check complete: ${result.isConnected ? 'CONNECTED' : 'DISCONNECTED'}`);
+      const result = await logger.withTiming(
+        'Connectivity check',
+        async () => {
+          const res = await checker.checkConnection();
+          await checker.handleConnectionStatus(res);
+          return res;
+        }
+      );
+      logger.debug(`Check complete: ${result.isConnected ? 'CONNECTED' : 'DISCONNECTED'}`, {
+        isConnected: result.isConnected,
+        target: result.target,
+        latencyMs: result.latencyMs
+      });
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);
-      console.error('Error during connectivity check:', errorMessage);
+      await logger.error('Error during connectivity check', { error: errorMessage });
     }
   };
 
@@ -33,13 +44,15 @@ export function startMonitoring(): void {
   // Then run every N seconds
   scheduledTask = setInterval(runCheck, checkIntervalMs);
 
-  console.log(`Monitoring started: checking every ${checkIntervalSeconds} seconds`);
+  logger.logLifecycle('monitoring_started', {
+    intervalSeconds: checkIntervalSeconds
+  });
 }
 
 export function stopMonitoring(): void {
   if (scheduledTask) {
     clearInterval(scheduledTask);
     scheduledTask = null;
-    console.log('Monitoring stopped');
+    logger.logLifecycle('monitoring_stopped');
   }
 }

@@ -49,11 +49,14 @@ async function main() {
 
     // Create connection check
     const isConnected = !isInOutage;
+    const targets = ['8.8.8.8', '1.1.1.1', 'google.com'];
+    const randomTarget = targets[Math.floor(Math.random() * targets.length)] || '8.8.8.8';
+
     checks.push({
       timestamp: new Date(currentDate),
       isConnected,
       latencyMs: isConnected ? Math.floor(Math.random() * 50) + 10 : null,
-      target: isConnected ? ['8.8.8.8', '1.1.1.1', 'google.com'][Math.floor(Math.random() * 3)] : 'all-targets-failed'
+      target: isConnected ? randomTarget : 'all-targets-failed'
     });
 
     if (isInOutage) {

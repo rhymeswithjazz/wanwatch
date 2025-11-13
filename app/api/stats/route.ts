@@ -2,10 +2,17 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { Stats } from '@/types/dashboard';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
+  const startTime = Date.now();
   const session = await auth();
+
   if (!session) {
+    const duration = Date.now() - startTime;
+    await logger.logRequest('GET', '/api/stats', 401, duration, {
+      reason: 'Unauthorized - no session'
+    });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -52,6 +59,12 @@ export async function GET() {
       }))
     };
 
+    const duration = Date.now() - startTime;
+    await logger.logRequest('GET', '/api/stats', 200, duration, {
+      userId: session.user?.email ?? undefined,
+      totalOutages
+    });
+
     return NextResponse.json(
       response,
       {
@@ -63,7 +76,12 @@ export async function GET() {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error fetching stats:', errorMessage);
+    const duration = Date.now() - startTime;
+
+    await logger.logRequest('GET', '/api/stats', 500, duration, {
+      error: errorMessage,
+      userId: session.user?.email ?? undefined
+    });
 
     return NextResponse.json(
       { error: 'Failed to fetch statistics' },

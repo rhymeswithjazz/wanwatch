@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { TimePeriod, ChartDataPoint } from '@/types/dashboard';
+import { logger } from '@/lib/logger';
 
 /**
  * Calculate cutoff time based on the selected time period
@@ -95,6 +96,11 @@ function downsampleData(
     // Use the middle item from the bucket as representative timestamp
     const representative = bucket[Math.floor(bucket.length / 2)];
 
+    // Skip if representative is undefined (shouldn't happen with non-empty buckets)
+    if (!representative) {
+      continue;
+    }
+
     downsampled.push({
       timestamp: representative.timestamp,
       isConnected: !hasDisconnection, // Show red if any disconnection in bucket
@@ -115,8 +121,14 @@ function downsampleData(
  * - period: TimePeriod ('5m' | '15m' | '1h' | '6h' | '24h' | 'all')
  */
 export async function GET(request: Request) {
+  const startTime = Date.now();
   const session = await auth();
+
   if (!session) {
+    const duration = Date.now() - startTime;
+    await logger.logRequest('GET', '/api/stats/chart-data', 401, duration, {
+      reason: 'Unauthorized - no session'
+    });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -152,6 +164,14 @@ export async function GET(request: Request) {
     // Perform server-side downsampling
     const chartData = downsampleData(checks, targetBuckets);
 
+    const duration = Date.now() - startTime;
+    await logger.logRequest('GET', '/api/stats/chart-data', 200, duration, {
+      userId: session.user?.email ?? undefined,
+      period,
+      originalPoints: checks.length,
+      downsampledPoints: chartData.length
+    });
+
     return NextResponse.json(
       { chartData },
       {
@@ -163,7 +183,12 @@ export async function GET(request: Request) {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error fetching chart data:', errorMessage);
+    const duration = Date.now() - startTime;
+
+    await logger.logRequest('GET', '/api/stats/chart-data', 500, duration, {
+      error: errorMessage,
+      userId: session.user?.email ?? undefined
+    });
 
     return NextResponse.json(
       { error: 'Failed to fetch chart data' },

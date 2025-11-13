@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
-import { prisma } from '@/lib/db';
 import { getErrorMessage } from '@/lib/utils';
 import { env } from '@/lib/env';
+import { logger } from '@/lib/logger';
 
 export async function sendOutageRestoredEmail(
   startTime: Date,
@@ -10,7 +10,7 @@ export async function sendOutageRestoredEmail(
 ): Promise<void> {
   // Check if email is configured
   if (!env.SMTP_HOST || !env.EMAIL_TO) {
-    console.log('Email not configured, skipping notification');
+    logger.debug('Email not configured, skipping notification');
     return;
   }
 
@@ -51,26 +51,19 @@ export async function sendOutageRestoredEmail(
   try {
     await transporter.sendMail(mailOptions);
 
-    await prisma.systemLog.create({
-      data: {
-        level: 'INFO',
-        message: 'Outage notification email sent',
-        metadata: JSON.stringify({ durationSec })
-      }
+    // Log successful email send
+    await logger.logEmail('success', env.EMAIL_TO, 'Connection Restored', {
+      durationSec,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString()
     });
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
-    console.error('Failed to send email notification:', errorMessage);
 
-    await prisma.systemLog.create({
-      data: {
-        level: 'ERROR',
-        message: 'Failed to send email notification',
-        metadata: JSON.stringify({ error: errorMessage })
-      }
-    }).catch(err => {
-      // Don't let logging errors break the notification flow
-      console.error('Failed to log email error:', getErrorMessage(err));
+    // Log email failure
+    await logger.logEmail('failure', env.EMAIL_TO || 'unknown', 'Connection Restored', {
+      error: errorMessage,
+      durationSec
     });
   }
 }

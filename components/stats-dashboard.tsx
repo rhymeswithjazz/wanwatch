@@ -201,10 +201,13 @@ const TimelineChart = memo(({
       {/* Time Labels */}
       <div className="flex justify-between text-xs text-muted-foreground px-1">
         <div>
-          {formatXAxisTime(filteredChecks[0]?.timestamp)}
+          {filteredChecks[0]?.timestamp ? formatXAxisTime(filteredChecks[0].timestamp) : 'N/A'}
         </div>
         <div>
-          {formatXAxisTime(filteredChecks[filteredChecks.length - 1]?.timestamp)}
+          {(() => {
+            const lastCheck = filteredChecks[filteredChecks.length - 1];
+            return lastCheck?.timestamp ? formatXAxisTime(lastCheck.timestamp) : 'N/A';
+          })()}
         </div>
       </div>
     </div>
