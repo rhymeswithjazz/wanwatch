@@ -24,6 +24,9 @@ model ConnectionCheck {
   isConnected Boolean
   latencyMs   Int?
   target      String
+
+  @@index([timestamp])
+  @@index([isConnected, timestamp])
 }
 
 model Outage {
@@ -34,6 +37,9 @@ model Outage {
   isResolved  Boolean   @default(false)
   checksCount Int       @default(0)
   emailSent   Boolean   @default(false)
+
+  @@index([isResolved, startTime])
+  @@index([startTime])
 }
 
 model SystemLog {

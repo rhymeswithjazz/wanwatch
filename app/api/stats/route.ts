@@ -13,15 +13,10 @@ export async function GET() {
     const [
       totalOutages,
       activeOutage,
-      recentChecks,
       outageHistory
     ] = await Promise.all([
       prisma.outage.count({ where: { isResolved: true } }),
       prisma.outage.findFirst({ where: { isResolved: false } }),
-      prisma.connectionCheck.findMany({
-        take: 50000,
-        orderBy: { timestamp: 'desc' }
-      }),
       prisma.outage.findMany({
         take: 50,
         orderBy: { startTime: 'desc' },
@@ -43,13 +38,9 @@ export async function GET() {
       activeOutage,
       totalDowntimeSec: totalDowntime._sum.durationSec || 0,
       avgOutageDurationSec: Math.round(avgOutageDuration),
-      recentChecks: recentChecks.map(check => ({
-        id: check.id,
-        timestamp: check.timestamp,
-        isConnected: check.isConnected,
-        latencyMs: check.latencyMs,
-        target: check.target
-      })),
+      // Chart data is now served by /api/stats/chart-data endpoint
+      // Keep empty array for backward compatibility
+      recentChecks: [],
       outageHistory: outageHistory.map(outage => ({
         id: outage.id,
         startTime: outage.startTime,
@@ -61,7 +52,15 @@ export async function GET() {
       }))
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(
+      response,
+      {
+        headers: {
+          // Cache for 30 seconds, allow stale data for 60 seconds while revalidating
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        },
+      }
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error fetching stats:', errorMessage);
@@ -72,3 +71,6 @@ export async function GET() {
     );
   }
 }
+
+// Force dynamic rendering - this endpoint always needs fresh data
+export const dynamic = 'force-dynamic';

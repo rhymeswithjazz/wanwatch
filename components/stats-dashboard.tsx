@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { DataTable, DataTableColumnHeader } from '@/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
-import { Stats, ConnectionCheck, Outage, NetworkInfo, TimePeriod } from '@/types/dashboard';
+import { Stats, ConnectionCheck, Outage, NetworkInfo, TimePeriod, ChartDataPoint } from '@/types/dashboard';
 
 // Helper function for formatting duration
 const formatDuration = (seconds: number) => {
@@ -129,7 +129,7 @@ const TimelineChart = memo(({
   filteredChecks,
   timePeriod
 }: {
-  filteredChecks: ConnectionCheck[];
+  filteredChecks: ChartDataPoint[];
   timePeriod: TimePeriod;
 }) => {
   const formatXAxisTime = useCallback((time: Date | string) => {
@@ -261,6 +261,7 @@ OutageHistoryTable.displayName = 'OutageHistoryTable';
 export default function StatsDisplay() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('24h');
   const [isPending, startTransition] = useTransition();
@@ -312,96 +313,45 @@ export default function StatsDisplay() {
 
     fetchStats();
     fetchNetworkInfo(); // Only fetch once, no interval
-    const interval = setInterval(fetchStats, 30000); // Refresh stats every 30s
+    const interval = setInterval(fetchStats, 60000); // Refresh stats every 60s (reduced from 30s)
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch chart data when time period changes
+  useEffect(() => {
+    const fetchChartData = async () => {
+      try {
+        const res = await fetch(`/api/stats/chart-data?period=${timePeriod}`, {
+          credentials: 'include'
+        });
+
+        if (!res.ok) {
+          console.error('Failed to fetch chart data:', res.status, res.statusText);
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.error) {
+          console.error('Chart data API error:', data.error);
+          return;
+        }
+
+        setChartData(data.chartData || []);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Error fetching chart data:', errorMessage);
+      }
+    };
+
+    fetchChartData();
+  }, [timePeriod]);
 
   const handleTimePeriodChange = useCallback((period: TimePeriod) => {
     startTransition(() => {
       setTimePeriod(period);
     });
   }, [startTransition]);
-
-  const filteredChecks = useMemo(() => {
-    if (!stats) return [];
-
-    // Define max bars to show for each time period
-    // With 30-second intervals, this creates a clean, readable chart
-    const getMaxBarsForPeriod = (period: TimePeriod): number => {
-      switch (period) {
-        case '5m':
-          return 10;   // All 10 bars (every 30s)
-        case '15m':
-          return 30;   // All 30 bars (every 30s)
-        case '1h':
-          return 60;   // 60 bars (aggregate every 2 checks = 1 min per bar)
-        case '6h':
-          return 72;   // 72 bars (aggregate every 10 checks = 5 min per bar)
-        case '24h':
-          return 96;   // 96 bars (aggregate every 30 checks = 15 min per bar)
-        case 'all':
-          return 200;  // Max 200 bars for full history
-      }
-    };
-
-    const filterDataByPeriod = (data: ConnectionCheck[], period: TimePeriod): ConnectionCheck[] => {
-      if (period === 'all') return data;
-
-      const now = new Date();
-      const cutoffTime = new Date();
-
-      switch (period) {
-        case '5m':
-          cutoffTime.setMinutes(now.getMinutes() - 5);
-          break;
-        case '15m':
-          cutoffTime.setMinutes(now.getMinutes() - 15);
-          break;
-        case '1h':
-          cutoffTime.setHours(now.getHours() - 1);
-          break;
-        case '6h':
-          cutoffTime.setHours(now.getHours() - 6);
-          break;
-        case '24h':
-          cutoffTime.setHours(now.getHours() - 24);
-          break;
-      }
-
-      return data.filter(item => new Date(item.timestamp) >= cutoffTime);
-    };
-
-    const downsampleData = (data: ConnectionCheck[], maxPoints: number): ConnectionCheck[] => {
-      if (data.length <= maxPoints) return data;
-
-      const step = Math.ceil(data.length / maxPoints);
-      const downsampled: ConnectionCheck[] = [];
-
-      for (let i = 0; i < data.length; i += step) {
-        // Take a slice for this bucket
-        const bucket = data.slice(i, i + step);
-
-        // If any check in this bucket is disconnected, show as disconnected
-        const hasDisconnection = bucket.some(check => !check.isConnected);
-
-        // Use the middle item from the bucket as representative
-        const representative = bucket[Math.floor(bucket.length / 2)];
-
-        downsampled.push({
-          ...representative,
-          isConnected: !hasDisconnection // Show red if any disconnection in bucket
-        });
-      }
-
-      return downsampled;
-    };
-
-    const filtered = filterDataByPeriod(stats.recentChecks, timePeriod);
-    const maxBars = getMaxBarsForPeriod(timePeriod);
-
-    // Downsample to fixed number of bars for consistent chart appearance
-    return downsampleData(filtered, maxBars);
-  }, [stats, timePeriod]);
 
   if (loading) return <div className="p-5">Loading...</div>;
   if (!stats) return (
@@ -454,7 +404,7 @@ export default function StatsDisplay() {
               <span>Disconnected</span>
             </div>
           </div>
-          <TimelineChart filteredChecks={filteredChecks} timePeriod={timePeriod} />
+          <TimelineChart filteredChecks={chartData} timePeriod={timePeriod} />
         </CardContent>
       </Card>
 
