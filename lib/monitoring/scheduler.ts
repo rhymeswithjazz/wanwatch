@@ -1,4 +1,5 @@
 import { ConnectivityChecker } from './connectivity-checker';
+import { getErrorMessage } from '@/lib/utils';
 
 let scheduledTask: NodeJS.Timeout | null = null;
 
@@ -19,8 +20,9 @@ export function startMonitoring(): void {
       const result = await checker.checkConnection();
       await checker.handleConnectionStatus(result);
       console.log(`Check complete: ${result.isConnected ? 'CONNECTED' : 'DISCONNECTED'}`);
-    } catch (error) {
-      console.error('Error during connectivity check:', error);
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      console.error('Error during connectivity check:', errorMessage);
     }
   };
 

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
+import { NetworkInfo, GeoData } from '@/types/dashboard';
 
 // Cache the network info for 10 minutes to avoid hitting rate limits
-let cachedNetworkInfo: any = null;
+let cachedNetworkInfo: NetworkInfo | null = null;
 let cacheTimestamp: number = 0;
 const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -27,7 +28,7 @@ export async function GET() {
 
     let ipv4 = 'N/A';
     let ipv6 = 'N/A';
-    let geoData: any = {};
+    let geoData: Partial<GeoData> = {};
 
     // Get IPv4
     if (ipv4Response.status === 'fulfilled' && ipv4Response.value.ok) {
@@ -95,8 +96,9 @@ export async function GET() {
     cacheTimestamp = now;
 
     return NextResponse.json(cachedNetworkInfo);
-  } catch (error: any) {
-    console.error('Error in network-info API:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in network-info API:', errorMessage);
 
     // Return stale cache if available
     if (cachedNetworkInfo) {
@@ -106,7 +108,7 @@ export async function GET() {
 
     return NextResponse.json({
       error: 'Unable to fetch network information',
-      details: error.message
+      details: errorMessage
     }, { status: 500 });
   }
 }

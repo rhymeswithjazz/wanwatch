@@ -34,7 +34,8 @@ export default function LoginPage() {
       } else {
         router.push('/dashboard');
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('Login error:', error instanceof Error ? error.message : 'Unknown error');
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);

@@ -1,6 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { prisma } from '@/lib/db';
+import { getErrorMessage } from '@/lib/utils';
 
 const execAsync = promisify(exec);
 
@@ -15,7 +16,19 @@ export class ConnectivityChecker {
   private targets = [
     '8.8.8.8',      // Google DNS
     '1.1.1.1',      // Cloudflare DNS
-    'google.com'    // Domain resolution test
+    'google.com',    // Domain resolution test
+    'espn.com',
+    'yahoo.com',
+    'bing.com',
+    'duckduckgo.com',
+    'reddit.com',
+    'twitter.com',
+    'facebook.com',
+    'instagram.com',
+    'youtube.com',
+    'twitch.tv',
+    'discord.com',
+    'telegram.org',
   ];
 
   async checkConnection(): Promise<ConnectivityResult> {
@@ -38,8 +51,20 @@ export class ConnectivityChecker {
 
           return { ...result, timestamp, target };
         }
-      } catch (error) {
-        console.error(`Failed to ping ${target}:`, error);
+      } catch (error: unknown) {
+        const errorMessage = getErrorMessage(error);
+        console.error(`Failed to ping ${target}:`, errorMessage);
+
+        await prisma.systemLog.create({
+          data: {
+            level: 'WARN',
+            message: `Ping failed for ${target}`,
+            metadata: JSON.stringify({ error: errorMessage })
+          }
+        }).catch(err => {
+          // Don't let logging errors break the monitoring loop
+          console.error('Failed to log ping error:', getErrorMessage(err));
+        });
       }
     }
 

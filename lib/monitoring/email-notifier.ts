@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { prisma } from '@/lib/db';
+import { getErrorMessage } from '@/lib/utils';
 
 export async function sendOutageRestoredEmail(
   startTime: Date,
@@ -56,13 +57,19 @@ export async function sendOutageRestoredEmail(
         metadata: JSON.stringify({ durationSec })
       }
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
+    console.error('Failed to send email notification:', errorMessage);
+
     await prisma.systemLog.create({
       data: {
         level: 'ERROR',
         message: 'Failed to send email notification',
-        metadata: JSON.stringify({ error: String(error) })
+        metadata: JSON.stringify({ error: errorMessage })
       }
+    }).catch(err => {
+      // Don't let logging errors break the notification flow
+      console.error('Failed to log email error:', getErrorMessage(err));
     });
   }
 }

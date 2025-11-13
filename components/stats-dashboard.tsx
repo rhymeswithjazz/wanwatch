@@ -6,28 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { DataTable, DataTableColumnHeader } from '@/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
-
-interface Stats {
-  totalOutages: number;
-  activeOutage: any;
-  totalDowntimeSec: number;
-  avgOutageDurationSec: number;
-  recentChecks: any[];
-  outageHistory: any[];
-}
-
-interface NetworkInfo {
-  ipv4: string;
-  ipv6: string;
-  city: string;
-  region: string;
-  country: string;
-  isp: string;
-  timezone: string;
-  asn: string;
-}
-
-type TimePeriod = '5m' | '15m' | '1h' | '6h' | '24h' | 'all';
+import { Stats, ConnectionCheck, Outage, NetworkInfo, TimePeriod } from '@/types/dashboard';
 
 // Helper function for formatting duration
 const formatDuration = (seconds: number) => {
@@ -43,7 +22,7 @@ const StatusCards = memo(({
   totalDowntimeSec,
   avgOutageDurationSec
 }: {
-  activeOutage: any;
+  activeOutage: Outage | null;
   totalOutages: number;
   totalDowntimeSec: number;
   avgOutageDurationSec: number;
@@ -150,10 +129,10 @@ const TimelineChart = memo(({
   filteredChecks,
   timePeriod
 }: {
-  filteredChecks: any[];
+  filteredChecks: ConnectionCheck[];
   timePeriod: TimePeriod;
 }) => {
-  const formatXAxisTime = useCallback((time: any) => {
+  const formatXAxisTime = useCallback((time: Date | string) => {
     const date = new Date(time);
     switch (timePeriod) {
       case '5m':
@@ -227,8 +206,8 @@ const TimelineChart = memo(({
 TimelineChart.displayName = 'TimelineChart';
 
 // Memoized OutageHistoryTable component - only re-renders when outage history changes
-const OutageHistoryTable = memo(({ outageHistory }: { outageHistory: any[] }) => {
-  const outageColumns: ColumnDef<any>[] = useMemo(() => [
+const OutageHistoryTable = memo(({ outageHistory }: { outageHistory: Outage[] }) => {
+  const outageColumns: ColumnDef<Outage>[] = useMemo(() => [
     {
       accessorKey: "startTime",
       header: ({ column }) => (
@@ -365,7 +344,7 @@ export default function StatsDisplay() {
       }
     };
 
-    const filterDataByPeriod = (data: any[], period: TimePeriod) => {
+    const filterDataByPeriod = (data: ConnectionCheck[], period: TimePeriod): ConnectionCheck[] => {
       if (period === 'all') return data;
 
       const now = new Date();
@@ -392,11 +371,11 @@ export default function StatsDisplay() {
       return data.filter(item => new Date(item.timestamp) >= cutoffTime);
     };
 
-    const downsampleData = (data: any[], maxPoints: number) => {
+    const downsampleData = (data: ConnectionCheck[], maxPoints: number): ConnectionCheck[] => {
       if (data.length <= maxPoints) return data;
 
       const step = Math.ceil(data.length / maxPoints);
-      const downsampled = [];
+      const downsampled: ConnectionCheck[] = [];
 
       for (let i = 0; i < data.length; i += step) {
         // Take a slice for this bucket
