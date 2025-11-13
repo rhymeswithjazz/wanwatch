@@ -140,7 +140,10 @@ Auto-refresh every 30 seconds
 │       └── email-notifier.ts           # Email notification sender
 │
 ├── components/
-│   └── stats-dashboard.tsx             # Main UI component (client-side)
+│   ├── stats-dashboard.tsx             # Main UI component (client-side)
+│   ├── logs-viewer.tsx                 # Logs display component (client-side)
+│   ├── nav-menu.tsx                    # Navigation dropdown menu (client-side)
+│   └── ui/                             # Reusable UI components (Radix UI primitives)
 │
 ├── prisma/
 │   ├── schema.prisma                   # Database schema
@@ -363,8 +366,37 @@ export function initializeMonitoring()
 **dashboard/page.tsx** (Server Component)
 - Checks session with auth()
 - Redirects to /login if no session
+- Renders header with "WanWatch" title (consistent across pages)
+- Includes theme toggle and navigation dropdown menu
 - Renders StatsDisplay component
-- Includes Sign Out button (server action)
+
+**logs/page.tsx** (Server Component)
+- Checks session with auth()
+- Redirects to /login if no session
+- Renders header with "WanWatch" title (consistent across pages)
+- Shows secondary "System Logs" page title below header
+- Includes theme toggle and navigation dropdown menu
+- Renders LogsViewer component
+
+### NavMenu Component (`components/nav-menu.tsx`)
+
+Client-side navigation component using Radix UI dropdown primitives:
+
+1. **Dropdown Menu Structure**
+   - Hamburger menu icon button in header (top-right)
+   - Context-aware navigation links based on current page
+   - Sign out action with destructive styling
+
+2. **Navigation Items**
+   - Shows "Dashboard" link when on Logs page
+   - Shows "System Logs" link when on Dashboard page
+   - Separator line before Sign Out option
+
+3. **Implementation Details**
+   - Uses `usePathname()` to detect current route
+   - Accepts `onSignOut` callback prop for server action
+   - Built with `@radix-ui/react-dropdown-menu` primitives
+   - Icons from `lucide-react` (Menu, FileText, LogOut)
 
 ### StatsDisplay Component (`components/stats-dashboard.tsx`)
 
@@ -547,6 +579,19 @@ npm start
 - Regular dependency updates: `npm audit fix`
 - SQLite file permissions: should be `0644` or `0664` for user:group ownership
 
+## Recent Changes
+
+### 2025-01-13 - Navigation UI Refactoring
+- **What**: Reorganized navigation into dropdown menu with consistent header
+- **Changes**:
+  - Created `NavMenu` component with hamburger dropdown menu
+  - Moved "System Logs" and "Sign Out" actions into dropdown
+  - Theme toggle remains standalone next to dropdown
+  - Header now consistently shows "WanWatch" on all pages
+  - Added secondary page titles below header (e.g., "System Logs" on `/logs`)
+- **Impact**: Cleaner UI, better mobile experience, consistent branding
+- **Components Added**: `components/nav-menu.tsx`
+
 ## Future Enhancement Ideas
 
 1. **Multi-user Support**: Add user roles (viewer/admin)
@@ -560,6 +605,6 @@ npm start
 
 ---
 
-**Last Updated**: 2025-11-08
+**Last Updated**: 2025-01-13
 **Project Status**: Active development
 **Deployment**: Docker Compose recommended

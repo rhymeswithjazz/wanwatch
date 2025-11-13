@@ -75,7 +75,9 @@ Next.js 15 App Router (React 19 + TypeScript)
 │       └── health/route.ts     # Docker healthcheck
 ├── components/
 │   ├── stats-dashboard.tsx     # Client component with charts (Recharts)
-│   └── logs-viewer.tsx         # Client component for log viewing
+│   ├── logs-viewer.tsx         # Client component for log viewing
+│   ├── nav-menu.tsx            # Navigation dropdown menu component
+│   └── ui/                     # Reusable UI components (buttons, dropdowns, etc.)
 ├── lib/
 │   ├── auth.ts                 # NextAuth v5 config (credentials provider)
 │   ├── db.ts                   # Prisma singleton client
@@ -273,6 +275,23 @@ Next.js 15 App Router (React 19 + TypeScript)
 - **No CSS framework**: All styles are inline React styles
 - Consistent color scheme: blues for online, reds for offline
 - Responsive design using flexbox
+
+### UI Navigation Pattern
+
+**Navigation Structure** (`components/nav-menu.tsx`):
+- **Dropdown Menu**: Hamburger icon button in top-right corner
+  - System Logs link (when on Dashboard page)
+  - Dashboard link (when on Logs page)
+  - Sign Out button (destructive/red styling)
+- **Theme Toggle**: Standalone button next to dropdown menu
+- **Consistent Header**: "WanWatch" title appears on all pages
+- **Page-Specific Titles**: Secondary h2 titles below header (e.g., "System Logs" on `/logs`)
+
+**Component Architecture**:
+- `nav-menu.tsx` is a client component (`'use client'`) using Radix UI dropdown primitives
+- Uses `usePathname()` to determine current page and show appropriate navigation link
+- Sign out action is passed as prop from server component pages
+- Header always displays "WanWatch" logo and title, maintaining brand consistency
 
 ## Common Gotchas
 
