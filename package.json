@@ -30,7 +30,8 @@
     "recharts": "^3.3.0",
     "swr": "^2.3.6",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

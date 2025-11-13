@@ -1,4 +1,5 @@
 import { startMonitoring } from '@/lib/monitoring/scheduler';
+import { env } from '@/lib/env';
 
 let initialized = false;
 
@@ -7,7 +8,7 @@ export function initializeMonitoring() {
     return;
   }
 
-  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_MONITORING === 'true') {
+  if (env.NODE_ENV === 'production' || env.ENABLE_MONITORING === 'true') {
     startMonitoring();
     initialized = true;
     console.log('WAN monitoring initialized');

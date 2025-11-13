@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { NetworkInfo, GeoData } from '@/types/dashboard';
+import { env } from '@/lib/env';
 
 // ip-api.com response type
 interface IpApiResponse {
@@ -16,7 +17,7 @@ interface IpApiResponse {
 // Cache the network info to avoid hitting rate limits
 let cachedNetworkInfo: NetworkInfo | null = null;
 let cacheTimestamp: number = 0;
-const CACHE_DURATION_MS = parseInt(process.env.NETWORK_INFO_CACHE_SECONDS || '600') * 1000;
+const CACHE_DURATION_MS = parseInt(env.NETWORK_INFO_CACHE_SECONDS || '600') * 1000;
 const FETCH_TIMEOUT = 5000; // 5 seconds
 
 export async function GET() {

@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { prisma } from '@/lib/db';
 import { getErrorMessage } from '@/lib/utils';
+import { env } from '@/lib/env';
 
 export async function sendOutageRestoredEmail(
   startTime: Date,
@@ -8,18 +9,18 @@ export async function sendOutageRestoredEmail(
   durationSec: number
 ): Promise<void> {
   // Check if email is configured
-  if (!process.env.SMTP_HOST || !process.env.EMAIL_TO) {
+  if (!env.SMTP_HOST || !env.EMAIL_TO) {
     console.log('Email not configured, skipping notification');
     return;
   }
 
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
+    host: env.SMTP_HOST,
+    port: parseInt(env.SMTP_PORT || '587'),
+    secure: env.SMTP_SECURE === 'true',
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS
     }
   });
 
@@ -30,8 +31,8 @@ export async function sendOutageRestoredEmail(
     : `${durationMin}m ${durationSec % 60}s`;
 
   const mailOptions = {
-    from: process.env.EMAIL_FROM,
-    to: process.env.EMAIL_TO,
+    from: env.EMAIL_FROM,
+    to: env.EMAIL_TO,
     subject: '🟢 WanWatch - Connection Restored',
     html: `
       <h2>Internet Connection Restored</h2>
@@ -41,7 +42,7 @@ export async function sendOutageRestoredEmail(
         <li><strong>Restored At:</strong> ${endTime.toLocaleString()}</li>
         <li><strong>Duration:</strong> ${durationDisplay}</li>
       </ul>
-      <p><a href="${process.env.APP_URL || 'http://localhost:3000'}/dashboard">View Dashboard</a></p>
+      <p><a href="${env.APP_URL || 'http://localhost:3000'}/dashboard">View Dashboard</a></p>
       <hr style="margin-top: 20px; border: none; border-top: 1px solid #ddd;">
       <p style="color: #666; font-size: 12px;">Sent by WanWatch</p>
     `

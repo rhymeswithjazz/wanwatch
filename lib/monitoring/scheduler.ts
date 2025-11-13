@@ -1,5 +1,6 @@
 import { ConnectivityChecker } from './connectivity-checker';
 import { getErrorMessage } from '@/lib/utils';
+import { env } from '@/lib/env';
 
 let scheduledTask: NodeJS.Timeout | null = null;
 
@@ -10,7 +11,7 @@ export function startMonitoring(): void {
   }
 
   const checker = new ConnectivityChecker();
-  const checkIntervalSeconds = parseInt(process.env.CHECK_INTERVAL_SECONDS || '300');
+  const checkIntervalSeconds = parseInt(env.CHECK_INTERVAL_SECONDS);
   const checkIntervalMs = checkIntervalSeconds * 1000;
 
   // Run connectivity check function
