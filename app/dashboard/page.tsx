@@ -1,10 +1,9 @@
 import { signOut } from '@/lib/auth';
 import StatsDisplay from '@/components/stats-dashboard';
-import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Logo } from '@/components/logo';
+import { NavMenu } from '@/components/nav-menu';
 import { Metadata } from 'next';
-import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -13,6 +12,12 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   // Middleware handles auth redirect
+
+  const handleSignOut = async () => {
+    'use server';
+    await signOut();
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
       <div className="flex justify-between items-center mb-6">
@@ -23,23 +28,8 @@ export default async function DashboardPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/logs">
-            <Button variant="outline">System Logs</Button>
-          </Link>
           <ThemeToggle />
-          <form
-            action={async () => {
-              'use server';
-              await signOut();
-            }}
-          >
-            <Button
-              type="submit"
-              variant="destructive"
-            >
-              Sign Out
-            </Button>
-          </form>
+          <NavMenu onSignOut={handleSignOut} />
         </div>
       </div>
       <StatsDisplay />
