@@ -4,8 +4,19 @@ import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'WanWatch',
-  description: 'Monitor your internet connection and track outages',
+  title: {
+    template: '%s | WanWatch',
+    default: 'WanWatch - Internet Connectivity Monitor',
+  },
+  description: 'Monitor your internet connection with real-time status tracking and outage history.',
+  keywords: ['internet', 'monitoring', 'connectivity', 'uptime', 'network', 'outage tracking'],
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    siteName: 'WanWatch',
+    title: 'WanWatch - Internet Connectivity Monitor',
+    description: 'Monitor your internet connection with real-time status tracking.',
+  },
 }
 
 // Initialize monitoring when the app starts

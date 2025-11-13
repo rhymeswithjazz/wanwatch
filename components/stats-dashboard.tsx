@@ -1,12 +1,19 @@
 'use client';
 
-import { useEffect, useState, useMemo, useTransition, useCallback, memo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, DataTableColumnHeader } from '@/components/ui/data-table';
+import { ChartDataPoint, NetworkInfo, Outage, Stats, TimePeriod } from '@/types/dashboard';
 import { ColumnDef } from '@tanstack/react-table';
-import { Stats, ConnectionCheck, Outage, NetworkInfo, TimePeriod, ChartDataPoint } from '@/types/dashboard';
+import { memo, useCallback, useState, useTransition } from 'react';
+import useSWR from 'swr';
+
+// Fetcher function for SWR
+const fetcher = (url: string) => fetch(url, { credentials: 'include' })
+  .then(res => {
+    if (!res.ok) throw new Error('Failed to fetch');
+    return res.json();
+  });
 
 // Helper function for formatting duration
 const formatDuration = (seconds: number) => {
@@ -205,40 +212,41 @@ const TimelineChart = memo(({
 });
 TimelineChart.displayName = 'TimelineChart';
 
+// Define column definitions at module level - outside component for better performance
+const outageColumns: ColumnDef<Outage>[] = [
+  {
+    accessorKey: "startTime",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Start Time" />
+    ),
+    cell: ({ row }) => {
+      const date = new Date(row.getValue("startTime"));
+      return date.toLocaleString();
+    },
+  },
+  {
+    accessorKey: "endTime",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="End Time" />
+    ),
+    cell: ({ row }) => {
+      const date = new Date(row.getValue("endTime"));
+      return date.toLocaleString();
+    },
+  },
+  {
+    accessorKey: "durationSec",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Duration" />
+    ),
+    cell: ({ row }) => {
+      return formatDuration(row.getValue("durationSec"));
+    },
+  },
+];
+
 // Memoized OutageHistoryTable component - only re-renders when outage history changes
 const OutageHistoryTable = memo(({ outageHistory }: { outageHistory: Outage[] }) => {
-  const outageColumns: ColumnDef<Outage>[] = useMemo(() => [
-    {
-      accessorKey: "startTime",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Start Time" />
-      ),
-      cell: ({ row }) => {
-        const date = new Date(row.getValue("startTime"));
-        return date.toLocaleString();
-      },
-    },
-    {
-      accessorKey: "endTime",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="End Time" />
-      ),
-      cell: ({ row }) => {
-        const date = new Date(row.getValue("endTime"));
-        return date.toLocaleString();
-      },
-    },
-    {
-      accessorKey: "durationSec",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Duration" />
-      ),
-      cell: ({ row }) => {
-        return formatDuration(row.getValue("durationSec"));
-      },
-    },
-  ], []);
-
   if (outageHistory.length === 0) {
     return (
       <div className="text-center py-10 text-muted-foreground">
@@ -259,106 +267,58 @@ const OutageHistoryTable = memo(({ outageHistory }: { outageHistory: Outage[] })
 OutageHistoryTable.displayName = 'OutageHistoryTable';
 
 export default function StatsDisplay() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('24h');
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await fetch('/api/stats', {
-          credentials: 'include'
-        });
+  // SWR handles all the fetching, caching, and revalidation
+  const { data: stats, error: statsError, isLoading: statsLoading } = useSWR<Stats>(
+    '/api/stats',
+    fetcher,
+    {
+      refreshInterval: 60000, // 60s polling
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 5000,
+      onError: (err) => console.error('Stats fetch error:', err),
+    }
+  );
 
-        if (!res.ok) {
-          console.error('Failed to fetch stats:', res.status, res.statusText);
-          setLoading(false);
-          return;
-        }
+  const { data: networkInfo } = useSWR<NetworkInfo>(
+    '/api/network-info',
+    fetcher,
+    {
+      refreshInterval: 600000, // 10 minutes
+      revalidateOnFocus: false,
+      dedupingInterval: 60000,
+    }
+  );
 
-        const data = await res.json();
+  const { data: chartDataResponse } = useSWR<{ chartData: ChartDataPoint[] }>(
+    `/api/stats/chart-data?period=${timePeriod}`,
+    fetcher,
+    {
+      refreshInterval: 30000, // 30s for chart data
+      revalidateOnFocus: true,
+    }
+  );
 
-        if (data.error) {
-          console.error('Stats API error:', data.error);
-          setLoading(false);
-          return;
-        }
-
-        setStats(data);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        setLoading(false);
-      }
-    };
-
-    // Fetch network info once on mount (not in an interval)
-    const fetchNetworkInfo = async () => {
-      try {
-        const res = await fetch('/api/network-info');
-        if (res.ok) {
-          const data = await res.json();
-          if (!data.error) {
-            setNetworkInfo(data);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching network info:', error);
-        // Silently fail - network info is optional
-      }
-    };
-
-    fetchStats();
-    fetchNetworkInfo(); // Only fetch once, no interval
-    const interval = setInterval(fetchStats, 60000); // Refresh stats every 60s (reduced from 30s)
-    return () => clearInterval(interval);
-  }, []);
-
-  // Fetch chart data when time period changes
-  useEffect(() => {
-    const fetchChartData = async () => {
-      try {
-        const res = await fetch(`/api/stats/chart-data?period=${timePeriod}`, {
-          credentials: 'include'
-        });
-
-        if (!res.ok) {
-          console.error('Failed to fetch chart data:', res.status, res.statusText);
-          return;
-        }
-
-        const data = await res.json();
-
-        if (data.error) {
-          console.error('Chart data API error:', data.error);
-          return;
-        }
-
-        setChartData(data.chartData || []);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error('Error fetching chart data:', errorMessage);
-      }
-    };
-
-    fetchChartData();
-  }, [timePeriod]);
+  const chartData = chartDataResponse?.chartData || [];
 
   const handleTimePeriodChange = useCallback((period: TimePeriod) => {
     startTransition(() => {
       setTimePeriod(period);
     });
-  }, [startTransition]);
+  }, []);
 
-  if (loading) return <div className="p-5">Loading...</div>;
-  if (!stats) return (
-    <div className="p-5 text-destructive">
-      Unable to load dashboard data. Please check the console for errors or try refreshing the page.
-    </div>
-  );
+  if (statsLoading) return <div className="p-5">Loading...</div>;
+
+  if (statsError || !stats) {
+    return (
+      <div className="p-5 text-destructive">
+        Unable to load dashboard data. Please check the console for errors or try refreshing the page.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -384,7 +344,7 @@ export default function StatsDisplay() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <CardTitle>Recent Connection Status</CardTitle>
-              <NetworkInfoDisplay networkInfo={networkInfo} />
+              <NetworkInfoDisplay networkInfo={networkInfo || null} />
             </div>
             <TimePeriodButtons
               timePeriod={timePeriod}

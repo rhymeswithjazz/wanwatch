@@ -1,16 +1,18 @@
 import { auth, signOut } from '@/lib/auth';
-import { redirect } from 'next/navigation';
 import StatsDisplay from '@/components/stats-dashboard';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Logo } from '@/components/logo';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Dashboard',
+  description: 'View real-time internet connectivity status and outage history',
+};
 
 export default async function DashboardPage() {
+  // Middleware handles auth redirect - just get session for display
   const session = await auth();
-
-  if (!session) {
-    redirect('/login');
-  }
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
