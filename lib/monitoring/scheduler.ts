@@ -1,12 +1,14 @@
 import { ConnectivityChecker } from './connectivity-checker';
+import { SpeedTester } from './speed-tester';
 import { getErrorMessage } from '@/lib/utils';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
-let scheduledTask: NodeJS.Timeout | null = null;
+let connectivityTask: NodeJS.Timeout | null = null;
+let speedTestTask: NodeJS.Timeout | null = null;
 
 export function startMonitoring(): void {
-  if (scheduledTask) {
+  if (connectivityTask) {
     logger.debug('Monitoring already running');
     return;
   }
@@ -38,21 +40,68 @@ export function startMonitoring(): void {
     }
   };
 
-  // Run immediately on startup
+  // Run connectivity check immediately on startup
   runCheck();
 
   // Then run every N seconds
-  scheduledTask = setInterval(runCheck, checkIntervalMs);
+  connectivityTask = setInterval(runCheck, checkIntervalMs);
 
   logger.logLifecycle('monitoring_started', {
     intervalSeconds: checkIntervalSeconds
   });
+
+  // Start speed test monitoring if enabled
+  if (env.ENABLE_SPEED_TEST === 'true') {
+    startSpeedTestMonitoring();
+  }
+}
+
+function startSpeedTestMonitoring(): void {
+  if (speedTestTask) {
+    logger.debug('Speed test monitoring already running');
+    return;
+  }
+
+  const speedTester = new SpeedTester();
+  const speedTestIntervalSeconds = parseInt(env.SPEED_TEST_INTERVAL_SECONDS);
+  const speedTestIntervalMs = speedTestIntervalSeconds * 1000;
+
+  // Run speed test function
+  const runSpeedTest = async () => {
+    logger.debug('Running speed test...');
+    try {
+      await logger.withTiming('Speed test', async () => {
+        await speedTester.runSpeedTest();
+      });
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      await logger.error('Error during speed test', { error: errorMessage });
+    }
+  };
+
+  // Run speed test after 30 seconds to allow connectivity check to complete first
+  setTimeout(() => {
+    runSpeedTest();
+  }, 30000);
+
+  // Then run every N seconds
+  speedTestTask = setInterval(runSpeedTest, speedTestIntervalMs);
+
+  logger.logLifecycle('speedtest_monitoring_started', {
+    intervalSeconds: speedTestIntervalSeconds
+  });
 }
 
 export function stopMonitoring(): void {
-  if (scheduledTask) {
-    clearInterval(scheduledTask);
-    scheduledTask = null;
+  if (connectivityTask) {
+    clearInterval(connectivityTask);
+    connectivityTask = null;
     logger.logLifecycle('monitoring_stopped');
+  }
+
+  if (speedTestTask) {
+    clearInterval(speedTestTask);
+    speedTestTask = null;
+    logger.logLifecycle('speedtest_monitoring_stopped');
   }
 }

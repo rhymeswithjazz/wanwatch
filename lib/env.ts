@@ -29,6 +29,10 @@ const envSchema = z.object({
   ENABLE_MONITORING: z.enum(['true', 'false']).default('false'),
   NETWORK_INFO_CACHE_SECONDS: z.string().regex(/^\d+$/).optional(),
 
+  // Speed Test Configuration
+  ENABLE_SPEED_TEST: z.enum(['true', 'false']).default('false'),
+  SPEED_TEST_INTERVAL_SECONDS: z.string().regex(/^\d+$/).default('1800'), // Default: 30 minutes
+
   // Docker Configuration (optional)
   TZ: z.string().optional(),
   PUID: z.string().regex(/^\d+$/).optional(),

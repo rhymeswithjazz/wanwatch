@@ -12,6 +12,7 @@ A self-contained WAN monitoring application that runs in Docker, periodically ch
 - 🐳 Docker-ready with volume persistence
 - 📈 Historical outage tracking and visualization
 - 📝 Structured logging system with searchable web UI
+- 🚀 **NEW:** Internet speed testing with Ookla Speedtest integration
 
 ## Technology Stack
 
@@ -167,6 +168,11 @@ docker run -d \
 - `APP_URL` - Dashboard URL for email links
 - `ENABLE_MONITORING` - Enable monitoring in development (default: false)
 
+#### Optional (Speed Testing):
+
+- `ENABLE_SPEED_TEST` - Enable automatic speed testing (default: false)
+- `SPEED_TEST_INTERVAL_SECONDS` - How often to run speed tests in seconds (default: 1800 = 30 minutes)
+
 ### Email Setup (Gmail Example)
 
 1. Enable 2FA on your Google account
@@ -209,7 +215,46 @@ npm run create-user admin@example.com mypassword "Admin User"
 - **Statistics Cards** - Total outages, total downtime, average outage duration
 - **Connection History Chart** - Visual timeline of recent connectivity checks
 - **Outage History Table** - Detailed log of past outages with timestamps and durations
+- **Speed Tests** - Monitor internet speed with download/upload measurements
 - **System Logs** - Searchable, filterable view of application logs with JSON metadata
+
+### Speed Testing
+
+WanWatch includes optional internet speed testing powered by Ookla Speedtest (the industry standard).
+
+**Features:**
+- Automatic periodic speed tests (configurable interval)
+- Download and upload speed measurements (Mbps)
+- Ping and jitter metrics
+- Historical speed test data with charts
+- Dedicated Speed Tests page in the dashboard
+
+**Setup:**
+
+1. **Enable in `.env` file:**
+   ```env
+   ENABLE_SPEED_TEST=true
+   SPEED_TEST_INTERVAL_SECONDS=1800  # 30 minutes recommended
+   ```
+
+2. **Restart the application:**
+   ```bash
+   docker-compose restart
+   # or
+   npm run dev
+   ```
+
+3. **First run:**
+   - The Ookla CLI binary will be automatically downloaded on first test
+   - License terms are automatically accepted (see Important Notes below)
+   - First test may take 1-2 minutes
+
+**Important Notes:**
+- ⚠️ **License**: Ookla Speedtest is **free for personal, non-commercial use only**
+- **Recommended interval**: 30-60 minutes (1800-3600 seconds) to avoid excessive testing
+- **Test duration**: Each test takes approximately 30-60 seconds
+- **Network impact**: Tests consume bandwidth during execution
+- **CLI download**: ~10-20MB binary downloaded automatically on first run
 
 ### System Logs
 

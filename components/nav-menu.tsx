@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Menu, FileText, LogOut, Settings, LayoutDashboard } from 'lucide-react';
+import { Menu, FileText, LogOut, Settings, LayoutDashboard, Gauge } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -21,6 +21,7 @@ export function NavMenu({ onSignOut }: NavMenuProps) {
   const pathname = usePathname();
   const isOnDashboard = pathname === '/dashboard';
   const isOnLogs = pathname === '/logs';
+  const isOnSpeedTest = pathname === '/speedtest';
   const isOnSettings = pathname === '/settings';
 
   return (
@@ -37,6 +38,14 @@ export function NavMenu({ onSignOut }: NavMenuProps) {
             <Link href="/dashboard" className="flex items-center cursor-pointer">
               <LayoutDashboard className="mr-2 h-4 w-4" />
               Dashboard
+            </Link>
+          </DropdownMenuItem>
+        )}
+        {!isOnSpeedTest && (
+          <DropdownMenuItem asChild>
+            <Link href="/speedtest" className="flex items-center cursor-pointer">
+              <Gauge className="mr-2 h-4 w-4" />
+              Speed Tests
             </Link>
           </DropdownMenuItem>
         )}

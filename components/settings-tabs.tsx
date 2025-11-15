@@ -3,12 +3,13 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ThemeSelector } from '@/components/theme-selector';
 import TargetsManager from '@/components/targets-manager';
-import { Palette, Target } from 'lucide-react';
+import { SpeedTestSettings } from '@/components/speed-test-settings';
+import { Palette, Target, Gauge } from 'lucide-react';
 
 export function SettingsTabs() {
   return (
     <Tabs defaultValue="appearance" className="w-full">
-      <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+      <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
         <TabsTrigger value="appearance" className="flex items-center gap-2">
           <Palette className="h-4 w-4" />
           <span>Appearance</span>
@@ -16,6 +17,10 @@ export function SettingsTabs() {
         <TabsTrigger value="monitoring" className="flex items-center gap-2">
           <Target className="h-4 w-4" />
           <span>Monitoring</span>
+        </TabsTrigger>
+        <TabsTrigger value="speedtest" className="flex items-center gap-2">
+          <Gauge className="h-4 w-4" />
+          <span>Speed Test</span>
         </TabsTrigger>
       </TabsList>
 
@@ -25,6 +30,10 @@ export function SettingsTabs() {
 
       <TabsContent value="monitoring" className="mt-6">
         <TargetsManager />
+      </TabsContent>
+
+      <TabsContent value="speedtest" className="mt-6">
+        <SpeedTestSettings />
       </TabsContent>
     </Tabs>
   );
