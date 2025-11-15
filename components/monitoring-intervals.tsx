@@ -26,10 +26,10 @@ export function MonitoringIntervals() {
   const [normalInterval, setNormalInterval] = useState(300);
   const [outageInterval, setOutageInterval] = useState(30);
 
-  // Load current settings
+  // Load current settings on component mount only
   useEffect(() => {
     loadSettings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadSettings should only run once on mount, not on every change
   }, []);
 
   const loadSettings = async () => {

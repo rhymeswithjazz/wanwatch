@@ -2,6 +2,9 @@ import { prisma } from '@/lib/db';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
+// Settings table uses single-row pattern with fixed ID
+const SETTINGS_ID = 1;
+
 export interface MonitoringIntervals {
   checkIntervalSeconds: number;
   outageCheckIntervalSeconds: number;
@@ -13,9 +16,9 @@ export interface MonitoringIntervals {
  */
 export async function getMonitoringIntervals(): Promise<MonitoringIntervals> {
   try {
-    // Try to get settings from database
-    const settings = await prisma.settings.findFirst({
-      orderBy: { updatedAt: 'desc' }
+    // Try to get settings from database (single-row pattern)
+    const settings = await prisma.settings.findUnique({
+      where: { id: SETTINGS_ID }
     });
 
     if (settings) {
@@ -70,12 +73,15 @@ export async function updateMonitoringIntervals(
     throw new Error('outageCheckIntervalSeconds must be less than checkIntervalSeconds');
   }
 
-  // Delete existing settings (we only keep one row)
-  await prisma.settings.deleteMany({});
-
-  // Create new settings
-  await prisma.settings.create({
-    data: {
+  // Upsert settings (update if exists, create if not)
+  await prisma.settings.upsert({
+    where: { id: SETTINGS_ID },
+    create: {
+      id: SETTINGS_ID,
+      checkIntervalSeconds: intervals.checkIntervalSeconds,
+      outageCheckIntervalSeconds: intervals.outageCheckIntervalSeconds
+    },
+    update: {
       checkIntervalSeconds: intervals.checkIntervalSeconds,
       outageCheckIntervalSeconds: intervals.outageCheckIntervalSeconds
     }

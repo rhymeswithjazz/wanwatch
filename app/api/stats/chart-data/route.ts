@@ -195,8 +195,8 @@ export async function GET(request: Request) {
       { chartData },
       {
         headers: {
-          // Cache for 10 seconds, allow stale data for 30 seconds while revalidating
-          'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+          // Cache for 30 seconds, allow stale data for 60 seconds while revalidating
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
         },
       }
     );

@@ -5,28 +5,23 @@ import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { getMonitoringIntervals } from '@/lib/settings';
 
+// Timing constants
+const SPEED_TEST_STARTUP_DELAY_MS = 30000; // 30 seconds - allow connectivity check to complete first
+const RESTART_CLEANUP_DELAY_MS = 100; // 100ms - ensure cleanup before restart
+
 let connectivityTask: NodeJS.Timeout | null = null;
 let speedTestTask: NodeJS.Timeout | null = null;
 let currentCheckInterval: number = 0;
 let currentOutageInterval: number = 0;
 let isOutageMode: boolean = false;
 
-export async function startMonitoring(): Promise<void> {
-  if (connectivityTask) {
-    logger.debug('Monitoring already running');
-    return;
-  }
-
-  // Load intervals from database or env vars
-  const intervals = await getMonitoringIntervals();
-  currentCheckInterval = intervals.checkIntervalSeconds * 1000;
-  currentOutageInterval = intervals.outageCheckIntervalSeconds * 1000;
-  isOutageMode = false;
-
-  const checker = new ConnectivityChecker();
-
-  // Run connectivity check function
-  const runCheck = async () => {
+/**
+ * Creates a connectivity check function with adaptive mode switching
+ * @param checker The ConnectivityChecker instance to use
+ * @returns An async function that performs the connectivity check
+ */
+function createConnectivityCheckFunction(checker: ConnectivityChecker): () => Promise<void> {
+  return async () => {
     logger.debug('Running connectivity check...', { mode: isOutageMode ? 'outage' : 'normal' });
     try {
       const result = await logger.withTiming(
@@ -57,6 +52,24 @@ export async function startMonitoring(): Promise<void> {
       await logger.error('Error during connectivity check', { error: errorMessage });
     }
   };
+}
+
+export async function startMonitoring(): Promise<void> {
+  if (connectivityTask) {
+    logger.debug('Monitoring already running');
+    return;
+  }
+
+  // Load intervals from database or env vars
+  const intervals = await getMonitoringIntervals();
+  currentCheckInterval = intervals.checkIntervalSeconds * 1000;
+  currentOutageInterval = intervals.outageCheckIntervalSeconds * 1000;
+  isOutageMode = false;
+
+  const checker = new ConnectivityChecker();
+
+  // Create connectivity check function
+  const runCheck = createConnectivityCheckFunction(checker);
 
   // Run connectivity check immediately on startup
   runCheck();
@@ -98,10 +111,10 @@ function startSpeedTestMonitoring(): void {
     }
   };
 
-  // Run speed test after 30 seconds to allow connectivity check to complete first
+  // Run speed test after delay to allow connectivity check to complete first
   setTimeout(() => {
     runSpeedTest();
-  }, 30000);
+  }, SPEED_TEST_STARTUP_DELAY_MS);
 
   // Then run every N seconds
   speedTestTask = setInterval(runSpeedTest, speedTestIntervalMs);
@@ -148,38 +161,8 @@ function restartConnectivityMonitoring(): void {
   // Get checker instance
   const checker = new ConnectivityChecker();
 
-  // Run check function
-  const runCheck = async () => {
-    logger.debug('Running connectivity check...', { mode: isOutageMode ? 'outage' : 'normal' });
-    try {
-      const result = await logger.withTiming(
-        'Connectivity check',
-        async () => {
-          const res = await checker.checkConnection();
-          await checker.handleConnectionStatus(res);
-          return res;
-        }
-      );
-      logger.debug(`Check complete: ${result.isConnected ? 'CONNECTED' : 'DISCONNECTED'}`, {
-        isConnected: result.isConnected,
-        target: result.target,
-        latencyMs: result.latencyMs,
-        mode: isOutageMode ? 'outage' : 'normal'
-      });
-
-      // Adaptive monitoring: switch modes based on connection status
-      if (!result.isConnected && !isOutageMode) {
-        // Switch to outage mode (rapid checking)
-        switchToOutageMode();
-      } else if (result.isConnected && isOutageMode) {
-        // Switch back to normal mode
-        switchToNormalMode();
-      }
-    } catch (error: unknown) {
-      const errorMessage = getErrorMessage(error);
-      await logger.error('Error during connectivity check', { error: errorMessage });
-    }
-  };
+  // Create connectivity check function
+  const runCheck = createConnectivityCheckFunction(checker);
 
   // Restart interval with new frequency
   connectivityTask = setInterval(runCheck, intervalMs);
@@ -216,7 +199,7 @@ export async function restartMonitoring(): Promise<void> {
   stopMonitoring();
 
   // Wait a moment to ensure cleanup
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise(resolve => setTimeout(resolve, RESTART_CLEANUP_DELAY_MS));
 
   // Start with new settings
   await startMonitoring();

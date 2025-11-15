@@ -40,7 +40,8 @@ export async function GET() {
 
       return NextResponse.json(cachedNetworkInfo, {
         headers: {
-          'Cache-Control': 'private, max-age=600, stale-while-revalidate=300',
+          // Cache for 10 minutes, allow stale for 20 minutes while revalidating
+          'Cache-Control': 'private, max-age=600, stale-while-revalidate=1200',
         },
       });
     }
@@ -152,7 +153,8 @@ export async function GET() {
 
     return NextResponse.json(cachedNetworkInfo, {
       headers: {
-        'Cache-Control': 'private, max-age=600, stale-while-revalidate=300',
+        // Cache for 10 minutes, allow stale for 20 minutes while revalidating
+        'Cache-Control': 'private, max-age=600, stale-while-revalidate=1200',
       },
     });
   } catch (error: unknown) {

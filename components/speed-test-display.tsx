@@ -215,7 +215,14 @@ export default function SpeedTestDisplay() {
       });
 
       if (!response.ok) {
-        throw new Error('Speed test failed');
+        const errorData = await response.json();
+
+        // Handle rate limiting specifically
+        if (response.status === 429) {
+          throw new Error(errorData.error || 'Rate limit exceeded');
+        }
+
+        throw new Error(errorData.error || 'Speed test failed');
       }
 
       const result = await response.json();
