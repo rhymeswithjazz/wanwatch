@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { NetworkInfo, GeoData } from '@/types/dashboard';
 import { env } from '@/lib/env';
+import { logger } from '@/lib/logger';
 
 // ip-api.com response type
 interface IpApiResponse {
@@ -21,12 +22,22 @@ const CACHE_DURATION_MS = parseInt(env.NETWORK_INFO_CACHE_SECONDS || '600') * 10
 const FETCH_TIMEOUT = 5000; // 5 seconds
 
 export async function GET() {
+  const startTime = Date.now();
+
   try {
     const now = Date.now();
 
     // Return cached data if it's still valid
     if (cachedNetworkInfo && (now - cacheTimestamp) < CACHE_DURATION_MS) {
-      console.log('Returning cached network info (age: ' + Math.round((now - cacheTimestamp) / 1000) + 's)');
+      const cacheAge = Math.round((now - cacheTimestamp) / 1000);
+      logger.debug('Returning cached network info', { cacheAgeSeconds: cacheAge });
+
+      const duration = Date.now() - startTime;
+      await logger.logRequest('GET', '/api/network-info', 200, duration, {
+        cached: true,
+        cacheAgeSeconds: cacheAge
+      });
+
       return NextResponse.json(cachedNetworkInfo, {
         headers: {
           'Cache-Control': 'private, max-age=600, stale-while-revalidate=300',
@@ -34,7 +45,7 @@ export async function GET() {
       });
     }
 
-    console.log('Fetching fresh network info...');
+    logger.debug('Fetching fresh network info from external APIs');
 
     // Fetch IPv4 and IPv6 addresses separately, plus geo info
     // Using ip-api.com for geolocation (better rate limits: 45 req/min vs ipapi.co's daily limits)
@@ -84,31 +95,40 @@ export async function GET() {
           timezone: rawGeoData.timezone,
           asn: rawGeoData.as
         };
-        console.log('Geo data fetched successfully:', { city: geoData.city, region: geoData.region, country: geoData.country_name });
+        logger.debug('Geo data fetched successfully', {
+          city: geoData.city,
+          region: geoData.region,
+          country: geoData.country_name
+        });
       } else {
-        console.error('Geo API returned error:', rawGeoData.message);
+        await logger.warn('Geo API returned error', { error: rawGeoData.message });
         if (cachedNetworkInfo) {
-          console.log('Using cached geo data');
+          logger.debug('Using cached geo data due to API error');
           geoData = cachedNetworkInfo;
         }
       }
     } else {
       if (geoResponse.status === 'rejected') {
-        console.error('Geo fetch rejected:', geoResponse.reason);
+        await logger.error('Geo fetch rejected', {
+          error: geoResponse.reason instanceof Error ? geoResponse.reason.message : String(geoResponse.reason)
+        });
       } else if (geoResponse.status === 'fulfilled' && !geoResponse.value.ok) {
-        console.error('Geo fetch failed with status:', geoResponse.value.status, geoResponse.value.statusText);
         const errorText = await geoResponse.value.text();
-        console.error('Geo fetch error response:', errorText);
+        await logger.error('Geo fetch failed', {
+          status: geoResponse.value.status,
+          statusText: geoResponse.value.statusText,
+          response: errorText
+        });
       }
 
       if (cachedNetworkInfo) {
         // If geo fetch fails but we have cache, use cached geo data
-        console.log('Geo fetch failed, using cached geo data');
+        logger.debug('Geo fetch failed, using cached geo data');
         geoData = cachedNetworkInfo;
       }
     }
 
-    console.log('Network info fetched - IPv4:', ipv4, 'IPv6:', ipv6);
+    logger.debug('Network info fetched', { ipv4, ipv6 });
 
     // Update cache
     cachedNetworkInfo = {
@@ -123,6 +143,13 @@ export async function GET() {
     };
     cacheTimestamp = now;
 
+    const duration = Date.now() - startTime;
+    await logger.logRequest('GET', '/api/network-info', 200, duration, {
+      cached: false,
+      ipv4,
+      ipv6
+    });
+
     return NextResponse.json(cachedNetworkInfo, {
       headers: {
         'Cache-Control': 'private, max-age=600, stale-while-revalidate=300',
@@ -130,17 +157,33 @@ export async function GET() {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error in network-info API:', errorMessage);
+    const duration = Date.now() - startTime;
+
+    await logger.error('Error in network-info API', {
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined
+    });
 
     // Return stale cache if available
     if (cachedNetworkInfo) {
-      console.log('Returning stale cache due to error');
+      logger.debug('Returning stale cache due to error');
+
+      await logger.logRequest('GET', '/api/network-info', 200, duration, {
+        cached: true,
+        stale: true,
+        error: errorMessage
+      });
+
       return NextResponse.json(cachedNetworkInfo, {
         headers: {
           'Cache-Control': 'private, max-age=60, stale-while-revalidate=30',
         },
       });
     }
+
+    await logger.logRequest('GET', '/api/network-info', 500, duration, {
+      error: errorMessage
+    });
 
     return NextResponse.json({
       error: 'Unable to fetch network information',

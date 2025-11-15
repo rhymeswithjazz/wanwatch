@@ -6,6 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface LogEntry {
   id: number;
@@ -144,19 +151,24 @@ export default function LogsViewer() {
             {/* Log Level Filter */}
             <div className="space-y-2">
               <Label htmlFor="level">Log Level</Label>
-              <select
-                id="level"
+              <Select
                 value={level}
-                onChange={(e) => {
-                  setLevel(e.target.value);
+                onValueChange={(value) => {
+                  setLevel(value);
                   setPage(1);
                 }}
-                className="w-full px-3 py-2 border rounded-md bg-background"
               >
-                {LOG_LEVELS.map(({ value, label }) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
+                <SelectTrigger id="level">
+                  <SelectValue placeholder="Select log level" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOG_LEVELS.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Search */}

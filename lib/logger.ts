@@ -241,6 +241,26 @@ class Logger {
   }
 
   /**
+   * Log settings changes (audit trail)
+   */
+  async logSettings(
+    action: 'target_added' | 'target_updated' | 'target_deleted' | 'target_enabled' | 'target_disabled',
+    targetName: string,
+    metadata?: LogMetadata
+  ): Promise<void> {
+    const messages = {
+      target_added: `Monitoring target added: ${targetName}`,
+      target_updated: `Monitoring target updated: ${targetName}`,
+      target_deleted: `Monitoring target deleted: ${targetName}`,
+      target_enabled: `Monitoring target enabled: ${targetName}`,
+      target_disabled: `Monitoring target disabled: ${targetName}`,
+    };
+
+    const message = messages[action];
+    await this.warn(message, { action, targetName, ...metadata });
+  }
+
+  /**
    * Measure and log execution time of an async function
    */
   async withTiming<T>(

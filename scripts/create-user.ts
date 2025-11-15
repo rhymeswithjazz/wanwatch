@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { logger } from '../lib/logger';
 
 const prisma = new PrismaClient();
 
@@ -22,6 +23,10 @@ async function main() {
 
   if (existingUser) {
     console.error(`Error: User with email ${email} already exists`);
+    await logger.warn('Attempted to create duplicate user', {
+      email,
+      existingUserId: existingUser.id
+    });
     process.exit(1);
   }
 
@@ -39,11 +44,22 @@ async function main() {
   console.log(`   Email: ${user.email}`);
   console.log(`   Name: ${user.name}`);
   console.log(`   ID: ${user.id}`);
+
+  await logger.info('User created via CLI script', {
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    source: 'create-user-script'
+  });
 }
 
 main()
-  .catch((error) => {
+  .catch(async (error) => {
     console.error('Error creating user:', error);
+    await logger.error('Failed to create user via CLI script', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());
