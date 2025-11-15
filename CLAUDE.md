@@ -437,6 +437,70 @@ WanWatch supports four distinct color palettes, each with full light/dark mode s
 - Uses `usePathname()` to determine current page and show appropriate navigation link
 - Sign out action is passed as prop from server component pages
 
+### Standard Page Layout Pattern
+
+**IMPORTANT**: All new authenticated pages MUST follow this standardized layout pattern to prevent layout shifts and maintain visual consistency.
+
+**Required Structure**:
+```tsx
+export default async function YourPage() {
+  const handleSignOut = async () => {
+    'use server';
+    await signOut();
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      {/* Header Section - REQUIRED */}
+      <div className="flex justify-between items-center mb-6">
+        <Header />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <NavMenu onSignOut={handleSignOut} />
+        </div>
+      </div>
+
+      {/* Page Title Section - OPTIONAL (omit for Dashboard-style pages) */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-semibold text-muted-foreground">
+          Page Title
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Optional description text
+        </p>
+      </div>
+
+      {/* Page Content */}
+      <YourContentComponent />
+    </div>
+  );
+}
+```
+
+**Critical Requirements**:
+1. **Container**: Always use `max-w-7xl mx-auto` for consistent max-width
+2. **Responsive Padding**: Always use `p-4 sm:p-6 lg:p-8` (NOT fixed `p-6` or `container`)
+3. **Header Spacing**: Always use `mb-6` on header container
+4. **Page Title Styling**: Use `text-2xl font-semibold text-muted-foreground` for consistency
+5. **NO Extra Wrappers**: Do NOT add `min-h-screen`, `bg-background`, or `container` wrappers
+6. **NO Fixed Padding**: Do NOT use fixed padding like `p-6` - always use responsive breakpoints
+
+**Examples**:
+- **Dashboard** (`app/dashboard/page.tsx`): No page title section, content starts immediately after header
+- **Logs** (`app/logs/page.tsx`): Includes page title "System Logs" with description
+- **Settings** (`app/settings/page.tsx`): Includes page title "Settings" with description
+- **Speed Test** (`app/speedtest/page.tsx`): Special case with full-height layout (needs refactoring)
+
+**Common Mistakes to Avoid**:
+- ❌ Using `container mx-auto p-6 max-w-7xl` (conflicting container classes)
+- ❌ Using `min-h-screen bg-background` wrapper (causes layout shift)
+- ❌ Using fixed padding like `p-6` (not responsive)
+- ❌ Using different header spacing like `mb-2` or `mb-8` (inconsistent)
+- ❌ Using different text sizes for page titles (breaks visual hierarchy)
+
+✅ **Correct**: `max-w-7xl mx-auto p-4 sm:p-6 lg:p-8`
+✅ **Correct**: `text-2xl font-semibold text-muted-foreground` for page titles
+
 ## Common Gotchas
 
 ### 1. Monitoring Doesn't Start in Development
