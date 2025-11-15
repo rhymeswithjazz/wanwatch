@@ -226,7 +226,7 @@ class Logger {
    * Log application lifecycle events
    */
   async logLifecycle(
-    event: 'startup' | 'shutdown' | 'config_loaded' | 'monitoring_started' | 'monitoring_stopped',
+    event: 'startup' | 'shutdown' | 'config_loaded' | 'monitoring_started' | 'monitoring_stopped' | 'speedtest_monitoring_started' | 'speedtest_monitoring_stopped',
     metadata?: LogMetadata
   ): Promise<void> {
     const messages = {
@@ -235,6 +235,8 @@ class Logger {
       config_loaded: 'Configuration loaded successfully',
       monitoring_started: 'Monitoring system started',
       monitoring_stopped: 'Monitoring system stopped',
+      speedtest_monitoring_started: 'Speed test monitoring started',
+      speedtest_monitoring_stopped: 'Speed test monitoring stopped',
     };
 
     this.info(messages[event], { event, ...metadata });

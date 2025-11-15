@@ -1,6 +1,10 @@
-import speedtest from 'speedtest-net';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { getErrorMessage } from '@/lib/utils';
+
+const execAsync = promisify(exec);
 
 export interface SpeedTestResult {
   downloadMbps: number;
@@ -13,6 +17,38 @@ export interface SpeedTestResult {
   isp?: string;
   externalIp?: string;
   resultUrl?: string;
+}
+
+interface OoklaResult {
+  type: string;
+  timestamp: string;
+  ping: {
+    jitter: number;
+    latency: number;
+  };
+  download: {
+    bandwidth: number;
+    bytes: number;
+    elapsed: number;
+  };
+  upload: {
+    bandwidth: number;
+    bytes: number;
+    elapsed: number;
+  };
+  isp: string;
+  interface: {
+    externalIp: string;
+  };
+  server: {
+    id: number;
+    name: string;
+    location: string;
+    country: string;
+  };
+  result: {
+    url: string;
+  };
 }
 
 export class SpeedTester {
@@ -28,10 +64,12 @@ export class SpeedTester {
     logger.info('Starting speed test');
 
     try {
-      const result = await speedtest({
-        acceptLicense: true,
-        acceptGdpr: true,
+      // Run Ookla speedtest CLI with JSON output, 60 second timeout
+      const { stdout } = await execAsync('speedtest --accept-license --accept-gdpr --format=json', {
+        timeout: 60000,
       });
+
+      const result: OoklaResult = JSON.parse(stdout);
 
       const speedTestResult: SpeedTestResult = {
         downloadMbps: this.bytesToMbps(result.download.bandwidth),
@@ -56,8 +94,9 @@ export class SpeedTester {
 
       return speedTestResult;
     } catch (error) {
+      const errorMessage = getErrorMessage(error);
       await logger.error('Speed test failed', {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
       });
       return null;
     } finally {
@@ -82,10 +121,11 @@ export class SpeedTester {
         },
       });
 
-      await logger.logConnectivityCheck('speed_test_saved', true);
+      logger.debug('Speed test result saved to database');
     } catch (error) {
+      const errorMessage = getErrorMessage(error);
       await logger.error('Failed to save speed test result', {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
       });
     }
   }

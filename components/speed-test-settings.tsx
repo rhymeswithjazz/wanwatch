@@ -1,7 +1,6 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 
 export function SpeedTestSettings() {
@@ -14,13 +13,13 @@ export function SpeedTestSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
+        <div className="flex gap-2 p-3 bg-muted/50 rounded-lg border">
+          <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-sm text-muted-foreground">
             Speed test settings are configured via environment variables. To enable speed
             testing, add the following to your <code className="bg-muted px-1 py-0.5 rounded">.env</code> file:
-          </AlertDescription>
-        </Alert>
+          </p>
+        </div>
 
         <div className="bg-muted p-4 rounded-lg font-mono text-sm space-y-2">
           <div>
