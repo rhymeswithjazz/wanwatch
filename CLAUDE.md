@@ -90,6 +90,7 @@ Next.js 15 App Router (React 19 + TypeScript)
 │   ├── speed-test-display.tsx  # Speed test history and manual test trigger
 │   ├── speed-test-settings.tsx # Speed test configuration instructions
 │   ├── settings-tabs.tsx       # Tabbed settings interface (Appearance/Monitoring/Speed Test)
+│   ├── monitoring-intervals.tsx # Monitoring intervals configuration UI
 │   ├── theme-selector.tsx      # Theme variant selector with previews
 │   ├── theme-variant-initializer.tsx  # Applies saved theme on load
 │   ├── targets-manager.tsx     # Monitoring targets management
@@ -97,7 +98,7 @@ Next.js 15 App Router (React 19 + TypeScript)
 │   ├── header.tsx              # Clickable header (logo + title) component
 │   ├── logo.tsx                # WanWatch logo SVG component
 │   ├── theme-toggle.tsx        # Dark/light theme toggle component
-│   └── ui/                     # ShadCN UI components (button, card, input, select, tabs, toast, etc.)
+│   └── ui/                     # ShadCN UI components (button, card, input, select, tabs, toast, accordion, etc.)
 ├── lib/
 │   ├── auth.ts                 # NextAuth v5 config (credentials provider)
 │   ├── db.ts                   # Prisma singleton client
@@ -210,18 +211,20 @@ Next.js 15 App Router (React 19 + TypeScript)
 
 ### Database Schema (Prisma + SQLite)
 
-**6 Tables**:
+**7 Tables**:
 
 1. **User**: Authentication (email/bcrypt password/name/themeVariant)
 2. **ConnectionCheck**: Every ping result (timestamp, isConnected, latencyMs, target)
 3. **Outage**: Outage records (startTime, endTime, durationSec, isResolved, checksCount, emailSent)
 4. **SystemLog**: Application logs (timestamp, level, message, metadata JSON)
 5. **MonitoringTarget**: Configurable ping targets (target, displayName, type, isEnabled, priority)
-6. **SpeedTest**: Speed test results (timestamp, downloadMbps, uploadMbps, pingMs, jitterMs, serverId, serverName, serverCountry, isp, externalIp, resultUrl)
+6. **Settings**: Monitoring intervals configuration (checkIntervalSeconds, outageCheckIntervalSeconds)
+7. **SpeedTest**: Speed test results (timestamp, downloadMbps, uploadMbps, pingMs, jitterMs, serverId, serverName, serverCountry, isp, externalIp, resultUrl)
 
 **Key Patterns**:
 - `ConnectionCheck` and `SpeedTest` are append-only tables for historical data
 - Outages are updated atomically when resolved
+- `Settings` uses single-row upsert pattern (only one settings record exists)
 - Latest speed test is queried via `orderBy: { timestamp: 'desc' }` with `findFirst()`
 
 **Prisma Client**: Singleton instance in `lib/db.ts` prevents connection leaks.
@@ -328,7 +331,7 @@ Next.js 15 App Router (React 19 + TypeScript)
 ### Styling & Theming
 
 - **ShadCN UI Component Library**: All UI components use ShadCN for consistent design
-  - Available components: Button, Card, Input, Label, Select, Table, DataTable, DropdownMenu, Tabs, Toast, RadioGroup
+  - Available components: Button, Card, Input, Label, Select, Table, DataTable, DropdownMenu, Tabs, Toast, RadioGroup, Accordion
   - Theme-aware with dark/light mode support
   - Built on Tailwind CSS and Radix UI primitives
 - **Color scheme**: Customizable via theme variants (see below)
@@ -383,9 +386,13 @@ WanWatch supports four distinct color palettes, each with full light/dark mode s
 **Settings Page** (`app/settings/page.tsx`):
 - **Tabbed Interface**: Using ShadCN Tabs component
   - **Appearance Tab**: Theme variant selector with color previews
-  - **Monitoring Tab**: Monitoring targets manager
-- Eliminates scrolling by organizing settings into logical sections
-- Icons (Palette, Target) for visual clarity on tab triggers
+  - **Monitoring Tab**: Collapsible accordion sections (Clock/Crosshair icons)
+    - Monitoring Intervals: Adaptive monitoring interval configuration
+    - Monitoring Targets: Target management interface
+  - **Speed Test Tab**: Speed test configuration and settings
+- Organizes settings into logical sections with minimal visual clutter
+- Accordion sections start collapsed for clean presentation
+- Icons (Palette, Target, Gauge, Clock, Crosshair) for visual clarity
 
 **Component Architecture**:
 - `nav-menu.tsx` is a client component (`'use client'`) using ShadCN DropdownMenu
@@ -472,11 +479,21 @@ private targets = [
 
 ### Changing Check Intervals
 
-**Normal Mode Interval**:
-Set `CHECK_INTERVAL_SECONDS` in `.env` (value in seconds, default: 300).
+**Hybrid Settings Approach**:
+Monitoring intervals can be configured in two ways:
+1. **UI Settings** (preferred): Navigate to Settings → Monitoring → Monitoring Intervals
+   - Normal mode interval: 10-3600 seconds (default: 300 = 5 minutes)
+   - Outage mode interval: 5-600 seconds (default: 30 = 30 seconds)
+   - Changes apply immediately without container restart
+   - Settings persist in database and override environment variables
+   - Reset button available to restore environment defaults
+   - API endpoint: `/api/settings/monitoring`
 
-**Outage Mode Interval**:
-Set `OUTAGE_CHECK_INTERVAL_SECONDS` in `.env` (value in seconds, default: 30).
+2. **Environment Variables** (infrastructure defaults):
+   - `CHECK_INTERVAL_SECONDS` - Normal mode interval (default: 300)
+   - `OUTAGE_CHECK_INTERVAL_SECONDS` - Outage mode interval (default: 30)
+   - Used as fallback when no database settings exist
+   - Useful for setting organization-wide defaults in docker-compose.yml
 
 **How Adaptive Monitoring Works**:
 - System starts in normal mode with regular interval (e.g., 5 minutes)
@@ -484,6 +501,7 @@ Set `OUTAGE_CHECK_INTERVAL_SECONDS` in `.env` (value in seconds, default: 30).
 - When connection restored: automatically switches back to normal mode
 - Logs mode transitions at INFO level for visibility
 - Provides accurate outage duration tracking without constant rapid polling
+- Scheduler restarts automatically when settings change via UI
 
 ### Modifying Email Template
 
