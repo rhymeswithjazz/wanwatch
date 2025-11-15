@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Clock, RotateCcw, Save, AlertCircle } from 'lucide-react';
+import { Clock, RotateCcw, Save, AlertCircle, HelpCircle } from 'lucide-react';
 
 interface MonitoringIntervals {
   checkIntervalSeconds: number;
@@ -207,13 +207,13 @@ export function MonitoringIntervals() {
               Normal Mode Interval <span className="text-muted-foreground font-normal">(when connected)</span>
             </Label>
             <div className="group relative">
-              <AlertCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
               <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-popover border border-border rounded-md shadow-lg text-xs z-10">
                 Valid range: 10-3600 seconds (10s - 1 hour)
               </div>
             </div>
           </div>
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-2 items-center">
             <Input
               id="normalInterval"
               type="number"
@@ -225,9 +225,12 @@ export function MonitoringIntervals() {
               className="w-32"
             />
             <span className="text-sm text-muted-foreground">seconds</span>
-            <span className="text-sm text-muted-foreground ml-auto">
-              {formatTime(normalInterval)} • {checksPerHour(normalInterval)} checks/hour
-            </span>
+            <div className="group relative">
+              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-popover border border-border rounded-md shadow-lg text-xs z-10 whitespace-nowrap">
+                {formatTime(normalInterval)} • {checksPerHour(normalInterval)} checks/hour
+              </div>
+            </div>
           </div>
         </div>
 
@@ -238,13 +241,13 @@ export function MonitoringIntervals() {
               Outage Mode Interval <span className="text-muted-foreground font-normal">(during outages)</span>
             </Label>
             <div className="group relative">
-              <AlertCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
               <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-popover border border-border rounded-md shadow-lg text-xs z-10">
                 Valid range: 5-600 seconds (5s - 10 minutes)
               </div>
             </div>
           </div>
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-2 items-center">
             <Input
               id="outageInterval"
               type="number"
@@ -256,9 +259,12 @@ export function MonitoringIntervals() {
               className="w-32"
             />
             <span className="text-sm text-muted-foreground">seconds</span>
-            <span className="text-sm text-muted-foreground ml-auto">
-              {formatTime(outageInterval)} • {checksPerHour(outageInterval)} checks/hour
-            </span>
+            <div className="group relative">
+              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-popover border border-border rounded-md shadow-lg text-xs z-10 whitespace-nowrap">
+                {formatTime(outageInterval)} • {checksPerHour(outageInterval)} checks/hour
+              </div>
+            </div>
           </div>
         </div>
 
