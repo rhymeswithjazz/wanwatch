@@ -27,8 +27,26 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install tzdata for timezone support
-RUN apk add --no-cache tzdata
+# Install system dependencies
+# - tzdata: timezone support
+# - wget, tar: for downloading Ookla CLI
+# - ca-certificates: for HTTPS downloads
+RUN apk add --no-cache tzdata wget tar ca-certificates
+
+# Install Ookla Speedtest CLI
+# Download official binary for Alpine Linux (musl)
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+      SPEEDTEST_ARCH="x86_64"; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+      SPEEDTEST_ARCH="aarch64"; \
+    else \
+      echo "Unsupported architecture: $ARCH"; exit 1; \
+    fi && \
+    wget -q https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-${SPEEDTEST_ARCH}.tgz && \
+    tar xzf ookla-speedtest-1.2.0-linux-${SPEEDTEST_ARCH}.tgz -C /usr/local/bin speedtest && \
+    rm ookla-speedtest-1.2.0-linux-${SPEEDTEST_ARCH}.tgz && \
+    chmod +x /usr/local/bin/speedtest
 
 # Accept PUID/PGID as build args with defaults
 ARG PUID=1001
