@@ -235,6 +235,9 @@ WanWatch includes optional internet speed testing powered by Ookla Speedtest (th
 
 1. **Install Ookla Speedtest CLI:**
 
+   **Docker (Already Included):**
+   If you're using the official Docker image, the Ookla CLI is already installed - skip to step 2!
+
    **macOS (Homebrew):**
    ```bash
    brew tap teamookla/speedtest
@@ -252,8 +255,6 @@ WanWatch includes optional internet speed testing powered by Ookla Speedtest (th
    curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.rpm.sh | sudo bash
    sudo yum install speedtest
    ```
-
-   **Docker:** The official Ookla CLI must be installed in your Dockerfile (add to existing Dockerfile before the final stage)
 
 2. **Enable in `.env` file:**
    ```env
@@ -274,7 +275,8 @@ WanWatch includes optional internet speed testing powered by Ookla Speedtest (th
 
 **Important Notes:**
 - ⚠️ **License**: Ookla Speedtest is **free for personal, non-commercial use only**
-- ⚠️ **Installation Required**: The Ookla CLI binary must be installed on the system
+- ✅ **Docker**: CLI is pre-installed in the official Docker image (both ARM64 and AMD64)
+- **Local development**: You must install the CLI manually on your system
 - **Recommended interval**: 30-60 minutes (1800-3600 seconds) to avoid excessive testing
 - **Test duration**: Each test takes approximately 30-60 seconds
 - **Network impact**: Tests consume bandwidth during execution
