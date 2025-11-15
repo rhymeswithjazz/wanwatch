@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { initializeMonitoring } from './startup'
 import { ThemeProvider } from '@/components/theme-provider'
+import { ThemeVariantInitializer } from '@/components/theme-variant-initializer'
+import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -38,7 +40,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <ThemeVariantInitializer />
           {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

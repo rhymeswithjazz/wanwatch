@@ -4,6 +4,7 @@ import { Header } from '@/components/header';
 import { NavMenu } from '@/components/nav-menu';
 import { ThemeToggle } from '@/components/theme-toggle';
 import TargetsManager from '@/components/targets-manager';
+import { ThemeSelector } from '@/components/theme-selector';
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -36,6 +37,7 @@ export default async function SettingsPage() {
         </div>
 
         <div className="space-y-6">
+          <ThemeSelector />
           <TargetsManager />
         </div>
       </div>

@@ -120,7 +120,7 @@ const TimePeriodButtons = memo(({
           onClick={() => onPeriodChange(period)}
           disabled={isPending}
           variant={timePeriod === period ? 'default' : 'outline'}
-          className={timePeriod === period ? 'bg-primary text-white hover:bg-primary/90' : ''}
+          className={timePeriod === period ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}
           size="sm"
         >
           {timePeriodLabels[period]}

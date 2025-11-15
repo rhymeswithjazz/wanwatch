@@ -3,7 +3,9 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  /* Default Theme (Original Blue) */
+  :root,
+  :root[data-theme="default"] {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -28,7 +30,8 @@
     --radius: 0.5rem;
   }
 
-  .dark {
+  .dark:root,
+  .dark:root[data-theme="default"] {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
@@ -50,6 +53,156 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
+  }
+
+  /* Network Pulse Theme (Cyan/Teal) */
+  :root[data-theme="network-pulse"] {
+    --background: 0 0% 100%;
+    --foreground: 200 20% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 200 20% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 20% 12%;
+    --primary: 188 94% 43%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 186 25% 94%;
+    --secondary-foreground: 200 20% 12%;
+    --muted: 186 25% 94%;
+    --muted-foreground: 200 10% 45%;
+    --accent: 186 25% 94%;
+    --accent-foreground: 200 20% 12%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 162 73% 42%;
+    --success-foreground: 0 0% 100%;
+    --border: 186 25% 88%;
+    --input: 186 25% 88%;
+    --ring: 188 94% 43%;
+    --radius: 0.5rem;
+  }
+
+  .dark:root[data-theme="network-pulse"] {
+    --background: 200 30% 8%;
+    --foreground: 186 25% 96%;
+    --card: 200 25% 12%;
+    --card-foreground: 186 25% 96%;
+    --popover: 200 25% 12%;
+    --popover-foreground: 186 25% 96%;
+    --primary: 188 94% 55%;
+    --primary-foreground: 200 30% 8%;
+    --secondary: 200 20% 18%;
+    --secondary-foreground: 186 25% 96%;
+    --muted: 200 20% 18%;
+    --muted-foreground: 186 15% 65%;
+    --accent: 200 20% 18%;
+    --accent-foreground: 186 25% 96%;
+    --destructive: 0 99% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 162 73% 55%;
+    --success-foreground: 200 30% 8%;
+    --border: 200 20% 18%;
+    --input: 200 20% 18%;
+    --ring: 188 94% 60%;
+  }
+
+  /* Signal Theme (Green/Amber) */
+  :root[data-theme="signal"] {
+    --background: 0 0% 100%;
+    --foreground: 120 8% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 120 8% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 120 8% 15%;
+    --primary: 142 76% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 120 15% 94%;
+    --secondary-foreground: 120 8% 15%;
+    --muted: 120 15% 94%;
+    --muted-foreground: 120 6% 45%;
+    --accent: 45 93% 47%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 76% 42%;
+    --success-foreground: 0 0% 100%;
+    --border: 120 15% 88%;
+    --input: 120 15% 88%;
+    --ring: 142 76% 42%;
+    --radius: 0.5rem;
+  }
+
+  .dark:root[data-theme="signal"] {
+    --background: 120 10% 8%;
+    --foreground: 120 15% 96%;
+    --card: 120 10% 12%;
+    --card-foreground: 120 15% 96%;
+    --popover: 120 10% 12%;
+    --popover-foreground: 120 15% 96%;
+    --primary: 142 76% 55%;
+    --primary-foreground: 120 10% 8%;
+    --secondary: 120 8% 18%;
+    --secondary-foreground: 120 15% 96%;
+    --muted: 120 8% 18%;
+    --muted-foreground: 120 10% 65%;
+    --accent: 45 93% 58%;
+    --accent-foreground: 120 10% 8%;
+    --destructive: 0 99% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 76% 55%;
+    --success-foreground: 120 10% 8%;
+    --border: 120 8% 18%;
+    --input: 120 8% 18%;
+    --ring: 142 76% 60%;
+  }
+
+  /* Monitor Theme (Purple/Blue) */
+  :root[data-theme="monitor"] {
+    --background: 0 0% 100%;
+    --foreground: 260 15% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 260 15% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 260 15% 15%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 260 20% 94%;
+    --secondary-foreground: 260 15% 15%;
+    --muted: 260 20% 94%;
+    --muted-foreground: 260 10% 45%;
+    --accent: 260 20% 94%;
+    --accent-foreground: 260 15% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 76% 42%;
+    --success-foreground: 0 0% 100%;
+    --border: 260 20% 88%;
+    --input: 260 20% 88%;
+    --ring: 262 83% 58%;
+    --radius: 0.5rem;
+  }
+
+  .dark:root[data-theme="monitor"] {
+    --background: 260 30% 8%;
+    --foreground: 260 20% 96%;
+    --card: 260 25% 12%;
+    --card-foreground: 260 20% 96%;
+    --popover: 260 25% 12%;
+    --popover-foreground: 260 20% 96%;
+    --primary: 262 83% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 260 20% 18%;
+    --secondary-foreground: 260 20% 96%;
+    --muted: 260 20% 18%;
+    --muted-foreground: 260 15% 65%;
+    --accent: 260 20% 18%;
+    --accent-foreground: 260 20% 96%;
+    --destructive: 0 99% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 76% 55%;
+    --success-foreground: 260 30% 8%;
+    --border: 260 20% 18%;
+    --input: 260 20% 18%;
+    --ring: 262 83% 70%;
   }
 }
 
