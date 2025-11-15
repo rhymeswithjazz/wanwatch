@@ -3,11 +3,7 @@
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 
-interface HeaderProps {
-  title?: string;
-}
-
-export function Header({ title }: HeaderProps) {
+export function Header() {
   return (
     <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
       <Logo className="w-10 h-10 text-primary" />
