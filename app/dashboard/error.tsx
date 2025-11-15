@@ -1,5 +1,7 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+
 export default function DashboardError({
   error,
   reset,
@@ -20,18 +22,18 @@ export default function DashboardError({
           </p>
         )}
         <div className="flex gap-3">
-          <button
+          <Button
             onClick={reset}
-            className="px-4 py-2 bg-destructive text-white rounded-md hover:bg-destructive/90 font-medium"
+            variant="destructive"
           >
             Try again
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => window.location.href = '/'}
-            className="px-4 py-2 bg-muted text-foreground rounded-md hover:bg-muted/80 font-medium"
+            variant="outline"
           >
             Go home
-          </button>
+          </Button>
         </div>
       </div>
     </div>

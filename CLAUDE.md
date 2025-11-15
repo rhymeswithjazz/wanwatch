@@ -77,7 +77,10 @@ Next.js 15 App Router (React 19 + TypeScript)
 │   ├── stats-dashboard.tsx     # Client component with charts (Recharts)
 │   ├── logs-viewer.tsx         # Client component for log viewing
 │   ├── nav-menu.tsx            # Navigation dropdown menu component
-│   └── ui/                     # Reusable UI components (buttons, dropdowns, etc.)
+│   ├── header.tsx              # Clickable header (logo + title) component
+│   ├── logo.tsx                # WanWatch logo SVG component
+│   ├── theme-toggle.tsx        # Dark/light theme toggle component
+│   └── ui/                     # ShadCN UI components (button, card, input, select, etc.)
 ├── lib/
 │   ├── auth.ts                 # NextAuth v5 config (credentials provider)
 │   ├── db.ts                   # Prisma singleton client
@@ -155,9 +158,10 @@ Next.js 15 App Router (React 19 + TypeScript)
 **Where Logging is Used**:
 - Monitoring system (scheduler, connectivity checks, outages)
 - Email notifications (success/failure tracking)
-- Authentication events (login/logout)
-- API routes (request logging for 4xx/5xx responses)
-- Application lifecycle (startup)
+- Authentication events (login/logout, user creation)
+- API routes (all endpoints: /api/stats, /api/logs, /api/network-info with request logging)
+- Application lifecycle (startup, monitoring initialization)
+- CLI scripts (create-user.ts for audit trail)
 
 **Development vs Production**:
 - Development: `level: 'debug'` - all logs to console
@@ -272,26 +276,34 @@ Next.js 15 App Router (React 19 + TypeScript)
 
 ### Styling
 
-- **No CSS framework**: All styles are inline React styles
-- Consistent color scheme: blues for online, reds for offline
-- Responsive design using flexbox
+- **ShadCN UI Component Library**: All UI components use ShadCN for consistent design
+  - Available components: Button, Card, Input, Label, Select, Table, DataTable, DropdownMenu
+  - Theme-aware with dark/light mode support
+  - Built on Tailwind CSS and Radix UI primitives
+- **Color scheme**: Blues for online status, reds for offline/errors
+- **Responsive design**: Mobile-first using Tailwind breakpoints
 
 ### UI Navigation Pattern
 
-**Navigation Structure** (`components/nav-menu.tsx`):
+**Header** (`components/header.tsx`):
+- **Clickable Logo/Title**: Links to `/dashboard` (home page)
+- Includes WanWatch logo SVG and title
+- Hover effect for visual feedback
+- Consistent across all authenticated pages
+
+**Navigation Menu** (`components/nav-menu.tsx`):
 - **Dropdown Menu**: Hamburger icon button in top-right corner
   - System Logs link (when on Dashboard page)
   - Dashboard link (when on Logs page)
   - Sign Out button (destructive/red styling)
 - **Theme Toggle**: Standalone button next to dropdown menu
-- **Consistent Header**: "WanWatch" title appears on all pages
 - **Page-Specific Titles**: Secondary h2 titles below header (e.g., "System Logs" on `/logs`)
 
 **Component Architecture**:
-- `nav-menu.tsx` is a client component (`'use client'`) using Radix UI dropdown primitives
+- `nav-menu.tsx` is a client component (`'use client'`) using ShadCN DropdownMenu
+- `header.tsx` is a client component using Next.js Link for navigation
 - Uses `usePathname()` to determine current page and show appropriate navigation link
 - Sign out action is passed as prop from server component pages
-- Header always displays "WanWatch" logo and title, maintaining brand consistency
 
 ## Common Gotchas
 

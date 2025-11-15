@@ -84,12 +84,23 @@ export async function GET(request: Request) {
       totalPages: Math.ceil(total / pageSize),
     };
 
+    const duration = Date.now() - startTime;
+
     logger.debug('Logs fetched', {
       userId: session.user?.email ?? undefined,
       page,
       pageSize,
       total,
       filters: { level, search, startDate, endDate }
+    });
+
+    await logger.logRequest('GET', '/api/logs', 200, duration, {
+      userId: session.user?.email ?? undefined,
+      page,
+      pageSize,
+      total,
+      totalPages: response.totalPages,
+      hasFilters: !!(level || search || startDate || endDate)
     });
 
     return NextResponse.json(response, {
