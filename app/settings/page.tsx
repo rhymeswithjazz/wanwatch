@@ -4,6 +4,12 @@ import { Header } from '@/components/header';
 import { NavMenu } from '@/components/nav-menu';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { SettingsTabs } from '@/components/settings-tabs';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Settings',
+  description: 'Configure monitoring targets, intervals, and application preferences',
+};
 
 export default async function SettingsPage() {
   const session = await auth();
