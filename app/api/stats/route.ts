@@ -20,7 +20,8 @@ export async function GET() {
     const [
       totalOutages,
       activeOutage,
-      outageHistory
+      outageHistory,
+      latestSpeedTest
     ] = await Promise.all([
       prisma.outage.count({ where: { isResolved: true } }),
       prisma.outage.findFirst({ where: { isResolved: false } }),
@@ -28,6 +29,15 @@ export async function GET() {
         take: 50,
         orderBy: { startTime: 'desc' },
         where: { isResolved: true }
+      }),
+      prisma.speedTest.findFirst({
+        orderBy: { timestamp: 'desc' },
+        select: {
+          downloadMbps: true,
+          uploadMbps: true,
+          pingMs: true,
+          timestamp: true
+        }
       })
     ]);
 
@@ -56,7 +66,13 @@ export async function GET() {
         isResolved: outage.isResolved,
         checksCount: outage.checksCount,
         emailSent: outage.emailSent
-      }))
+      })),
+      latestSpeedTest: latestSpeedTest ? {
+        downloadMbps: latestSpeedTest.downloadMbps,
+        uploadMbps: latestSpeedTest.uploadMbps,
+        pingMs: latestSpeedTest.pingMs,
+        timestamp: latestSpeedTest.timestamp
+      } : null
     };
 
     const duration = Date.now() - startTime;

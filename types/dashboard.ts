@@ -30,6 +30,16 @@ export interface Outage {
 }
 
 /**
+ * Latest speed test result
+ */
+export interface LatestSpeedTest {
+  downloadMbps: number;
+  uploadMbps: number;
+  pingMs: number;
+  timestamp: Date | string;
+}
+
+/**
  * Dashboard statistics aggregated from the database
  * Returned by the /api/stats endpoint
  */
@@ -40,6 +50,7 @@ export interface Stats {
   avgOutageDurationSec: number;
   recentChecks: ConnectionCheck[];
   outageHistory: Outage[];
+  latestSpeedTest: LatestSpeedTest | null;
 }
 
 /**

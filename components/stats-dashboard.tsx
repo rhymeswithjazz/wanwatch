@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, DataTableColumnHeader } from '@/components/ui/data-table';
-import { ChartDataPoint, NetworkInfo, Outage, Stats, TimePeriod } from '@/types/dashboard';
+import { ChartDataPoint, LatestSpeedTest, NetworkInfo, Outage, Stats, TimePeriod } from '@/types/dashboard';
 import { ColumnDef } from '@tanstack/react-table';
 import { memo, useCallback, useState, useTransition } from 'react';
 import useSWR from 'swr';
@@ -70,8 +70,14 @@ const StatusCards = memo(({
 });
 StatusCards.displayName = 'StatusCards';
 
-// Memoized NetworkInfo component - only re-renders when network info changes
-const NetworkInfoDisplay = memo(({ networkInfo }: { networkInfo: NetworkInfo | null }) => {
+// Memoized NetworkInfo component - only re-renders when network info or speed test changes
+const NetworkInfoDisplay = memo(({
+  networkInfo,
+  latestSpeedTest
+}: {
+  networkInfo: NetworkInfo | null;
+  latestSpeedTest: LatestSpeedTest | null;
+}) => {
   if (!networkInfo) return null;
 
   return (
@@ -88,6 +94,14 @@ const NetworkInfoDisplay = memo(({ networkInfo }: { networkInfo: NetworkInfo | n
         <span className="text-foreground font-bold">Provider:</span>{' '}
         <span className="text-muted-foreground">{networkInfo.isp}</span>
       </div>
+      {latestSpeedTest && (
+        <div>
+          <span className="text-foreground font-bold">Speed:</span>{' '}
+          <span className="text-muted-foreground">
+            ↓ {latestSpeedTest.downloadMbps.toFixed(1)} Mbps / ↑ {latestSpeedTest.uploadMbps.toFixed(1)} Mbps
+          </span>
+        </div>
+      )}
     </div>
   );
 });
@@ -347,7 +361,10 @@ export default function StatsDisplay() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <CardTitle>Recent Connection Status</CardTitle>
-              <NetworkInfoDisplay networkInfo={networkInfo || null} />
+              <NetworkInfoDisplay
+                networkInfo={networkInfo || null}
+                latestSpeedTest={stats?.latestSpeedTest || null}
+              />
             </div>
             <TimePeriodButtons
               timePeriod={timePeriod}
