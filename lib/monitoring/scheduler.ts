@@ -3,22 +3,27 @@ import { SpeedTester } from './speed-tester';
 import { getErrorMessage } from '@/lib/utils';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
+import { getMonitoringIntervals } from '@/lib/settings';
 
 let connectivityTask: NodeJS.Timeout | null = null;
 let speedTestTask: NodeJS.Timeout | null = null;
-let currentCheckInterval: number = parseInt(env.CHECK_INTERVAL_SECONDS) * 1000;
+let currentCheckInterval: number = 0;
+let currentOutageInterval: number = 0;
 let isOutageMode: boolean = false;
 
-export function startMonitoring(): void {
+export async function startMonitoring(): Promise<void> {
   if (connectivityTask) {
     logger.debug('Monitoring already running');
     return;
   }
 
-  const checker = new ConnectivityChecker();
-  const checkIntervalSeconds = parseInt(env.CHECK_INTERVAL_SECONDS);
-  currentCheckInterval = checkIntervalSeconds * 1000;
+  // Load intervals from database or env vars
+  const intervals = await getMonitoringIntervals();
+  currentCheckInterval = intervals.checkIntervalSeconds * 1000;
+  currentOutageInterval = intervals.outageCheckIntervalSeconds * 1000;
   isOutageMode = false;
+
+  const checker = new ConnectivityChecker();
 
   // Run connectivity check function
   const runCheck = async () => {
@@ -60,8 +65,8 @@ export function startMonitoring(): void {
   connectivityTask = setInterval(runCheck, currentCheckInterval);
 
   logger.logLifecycle('monitoring_started', {
-    intervalSeconds: checkIntervalSeconds,
-    outageIntervalSeconds: parseInt(env.OUTAGE_CHECK_INTERVAL_SECONDS)
+    intervalSeconds: intervals.checkIntervalSeconds,
+    outageIntervalSeconds: intervals.outageCheckIntervalSeconds
   });
 
   // Start speed test monitoring if enabled
@@ -111,7 +116,7 @@ function switchToOutageMode(): void {
 
   logger.info('Switching to outage mode - increasing check frequency', {
     previousIntervalSeconds: currentCheckInterval / 1000,
-    newIntervalSeconds: parseInt(env.OUTAGE_CHECK_INTERVAL_SECONDS)
+    newIntervalSeconds: currentOutageInterval / 1000
   });
 
   isOutageMode = true;
@@ -122,8 +127,8 @@ function switchToNormalMode(): void {
   if (!isOutageMode) return;
 
   logger.info('Switching to normal mode - restoring regular check frequency', {
-    previousIntervalSeconds: currentCheckInterval / 1000,
-    newIntervalSeconds: parseInt(env.CHECK_INTERVAL_SECONDS)
+    previousIntervalSeconds: currentOutageInterval / 1000,
+    newIntervalSeconds: currentCheckInterval / 1000
   });
 
   isOutageMode = false;
@@ -138,11 +143,7 @@ function restartConnectivityMonitoring(): void {
   }
 
   // Determine new interval based on mode
-  const intervalSeconds = isOutageMode
-    ? parseInt(env.OUTAGE_CHECK_INTERVAL_SECONDS)
-    : parseInt(env.CHECK_INTERVAL_SECONDS);
-
-  currentCheckInterval = intervalSeconds * 1000;
+  const intervalMs = isOutageMode ? currentOutageInterval : currentCheckInterval;
 
   // Get checker instance
   const checker = new ConnectivityChecker();
@@ -181,10 +182,10 @@ function restartConnectivityMonitoring(): void {
   };
 
   // Restart interval with new frequency
-  connectivityTask = setInterval(runCheck, currentCheckInterval);
+  connectivityTask = setInterval(runCheck, intervalMs);
 
   logger.debug('Connectivity monitoring restarted', {
-    intervalSeconds,
+    intervalSeconds: intervalMs / 1000,
     mode: isOutageMode ? 'outage' : 'normal'
   });
 }
@@ -202,4 +203,23 @@ export function stopMonitoring(): void {
     speedTestTask = null;
     logger.logLifecycle('speedtest_monitoring_stopped');
   }
+}
+
+/**
+ * Restart monitoring with updated settings
+ * Used when settings are changed via the UI
+ */
+export async function restartMonitoring(): Promise<void> {
+  logger.info('Restarting monitoring with updated settings');
+
+  // Stop current monitoring
+  stopMonitoring();
+
+  // Wait a moment to ensure cleanup
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  // Start with new settings
+  await startMonitoring();
+
+  logger.info('Monitoring restarted successfully');
 }

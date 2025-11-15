@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "Settings" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "checkIntervalSeconds" INTEGER NOT NULL DEFAULT 300,
+    "outageCheckIntervalSeconds" INTEGER NOT NULL DEFAULT 30,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);

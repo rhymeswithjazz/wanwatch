@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ThemeSelector } from '@/components/theme-selector';
 import TargetsManager from '@/components/targets-manager';
 import { SpeedTestSettings } from '@/components/speed-test-settings';
+import { MonitoringIntervals } from '@/components/monitoring-intervals';
 import { Palette, Target, Gauge } from 'lucide-react';
 
 export function SettingsTabs() {
@@ -28,7 +29,8 @@ export function SettingsTabs() {
         <ThemeSelector />
       </TabsContent>
 
-      <TabsContent value="monitoring" className="mt-6">
+      <TabsContent value="monitoring" className="mt-6 space-y-6">
+        <MonitoringIntervals />
         <TargetsManager />
       </TabsContent>
 

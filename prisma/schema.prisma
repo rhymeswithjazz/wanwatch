@@ -82,3 +82,11 @@ model SpeedTest {
 
   @@index([timestamp])
 }
+
+model Settings {
+  id                         Int      @id @default(autoincrement())
+  checkIntervalSeconds       Int      @default(300)
+  outageCheckIntervalSeconds Int      @default(30)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
