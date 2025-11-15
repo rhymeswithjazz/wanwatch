@@ -3,8 +3,7 @@ import { auth, signOut } from '@/lib/auth';
 import { Header } from '@/components/header';
 import { NavMenu } from '@/components/nav-menu';
 import { ThemeToggle } from '@/components/theme-toggle';
-import TargetsManager from '@/components/targets-manager';
-import { ThemeSelector } from '@/components/theme-selector';
+import { SettingsTabs } from '@/components/settings-tabs';
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -29,17 +28,14 @@ export default async function SettingsPage() {
           </div>
         </div>
 
-        <div className="mb-8">
+        <div className="mb-6">
           <h2 className="text-2xl font-semibold">Settings</h2>
           <p className="text-muted-foreground mt-1">
             Manage monitoring targets and application configuration
           </p>
         </div>
 
-        <div className="space-y-6">
-          <ThemeSelector />
-          <TargetsManager />
-        </div>
+        <SettingsTabs />
       </div>
     </div>
   );
