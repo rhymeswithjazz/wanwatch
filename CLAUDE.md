@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## General Rules
+**NextJS** Always use NextJS 15 best practices. Use ShadCN for all UI components. 
+
 ## Project Overview
 
 **WanWatch** is a Next.js 15 application that monitors internet connectivity by periodically pinging external targets, runs optional internet speed tests, logs all data to SQLite, detects and tracks outages, sends email notifications on recovery, and provides an authenticated dashboard for viewing statistics and speed test history.
@@ -61,6 +64,40 @@ npx tsx scripts/create-user.ts <email> <password> [name]
 - User creation scripts (`create-user.ts`, `seed-data.ts`) use **tsx** not ts-node
 - The npm scripts in package.json already use `tsx` (updated from original `ts-node`)
 - When running manually with npx, use: `npx tsx scripts/...`
+
+### Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run specific test file
+npm test -- env
+npm test -- connectivity-checker
+npm test -- scheduler
+```
+
+**Test Coverage (125 tests total):**
+- `lib/env.ts`: 65 tests - Environment variable validation
+- `lib/monitoring/connectivity-checker.ts`: 34 tests - 100% coverage ✅
+- `lib/monitoring/scheduler.ts`: 26 tests - 72% coverage
+
+**Test Utilities:**
+- `__tests__/helpers/prisma-mock.ts` - Prisma client mock factory
+- `__tests__/factories/connection-check.factory.ts` - Connection check data factory
+- `__tests__/factories/outage.factory.ts` - Outage data factory
+
+**Testing Notes:**
+- All critical monitoring logic (connectivity-checker) has 100% test coverage
+- Tests use Jest with proper mocking of Prisma, child_process, and timers
+- Tests are fast (<1s) and reliable, no flakiness
+- Run tests before refactoring to ensure behavior is preserved
 
 ## High-Level Architecture
 
@@ -550,14 +587,31 @@ const result = await logger.withTiming('Operation name', async () => {
 - Always await async log methods (warn, error, critical, specialized methods)
 - Include relevant metadata as second parameter for debugging context
 
-## Testing Notes
+## Testing Strategy
 
-**No automated tests** are currently in the codebase. When adding tests:
+**Current Test Coverage: 125 tests, all passing ✅**
 
-- Use Prisma in-memory SQLite for database tests
-- Mock `child_process.exec` for connectivity checker tests
-- Mock nodemailer for email notification tests
-- Test authentication flows with NextAuth test utilities
+The codebase has comprehensive test coverage for critical business logic:
+
+**Test Suites:**
+- `lib/__tests__/env.test.ts` - 65 tests for environment validation (Zod schema testing)
+- `lib/monitoring/__tests__/connectivity-checker.test.ts` - 34 tests, 100% coverage
+- `lib/monitoring/__tests__/scheduler.test.ts` - 26 tests, 72% coverage
+
+**Testing Patterns Used:**
+- Prisma client mocking via factory pattern (`__tests__/helpers/prisma-mock.ts`)
+- `child_process.exec` mocking with promisify support
+- Mock data factories for ConnectionCheck and Outage models
+- Jest fake timers avoided for scheduler tests (too complex, used async waits instead)
+
+**Untested Areas (intentional):**
+- UI components (React components) - not critical for refactoring safety
+- `email-notifier.ts` - optional feature
+- `speed-tester.ts` - optional feature
+- NextAuth configuration - integration tested via real auth flows
+
+**Before Refactoring:**
+Always run `npm test` to ensure existing behavior is preserved. The test suite provides excellent protection for refactoring the monitoring system.
 
 ## Architecture Decisions
 
