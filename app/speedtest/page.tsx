@@ -1,8 +1,8 @@
-import { auth } from '@/lib/auth';
+import { auth, signOut } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { signOutAction } from '@/app/dashboard/actions';
-import Header from '@/components/header';
-import NavMenu from '@/components/nav-menu';
+import { Header } from '@/components/header';
+import { NavMenu } from '@/components/nav-menu';
+import { ThemeToggle } from '@/components/theme-toggle';
 import SpeedTestDisplay from '@/components/speed-test-display';
 
 export const metadata = {
@@ -17,11 +17,19 @@ export default async function SpeedTestPage() {
     redirect('/login');
   }
 
+  const handleSignOut = async () => {
+    'use server';
+    await signOut();
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <div className="flex items-center justify-between px-6 py-4 border-b">
         <Header />
-        <NavMenu onSignOut={signOutAction} />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <NavMenu onSignOut={handleSignOut} />
+        </div>
       </div>
 
       <main className="flex-1 px-6 py-8">
