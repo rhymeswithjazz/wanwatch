@@ -1,11 +1,12 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ThemeSelector } from '@/components/theme-selector';
 import TargetsManager from '@/components/targets-manager';
 import { SpeedTestSettings } from '@/components/speed-test-settings';
 import { MonitoringIntervals } from '@/components/monitoring-intervals';
-import { Palette, Target, Gauge } from 'lucide-react';
+import { Palette, Target, Gauge, Clock, Crosshair } from 'lucide-react';
 
 export function SettingsTabs() {
   return (
@@ -29,9 +30,32 @@ export function SettingsTabs() {
         <ThemeSelector />
       </TabsContent>
 
-      <TabsContent value="monitoring" className="mt-6 space-y-6">
-        <MonitoringIntervals />
-        <TargetsManager />
+      <TabsContent value="monitoring" className="mt-6">
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="intervals">
+            <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                <span>Monitoring Intervals</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <MonitoringIntervals />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="targets">
+            <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+              <div className="flex items-center gap-2">
+                <Crosshair className="h-5 w-5" />
+                <span>Monitoring Targets</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <TargetsManager />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </TabsContent>
 
       <TabsContent value="speedtest" className="mt-6">

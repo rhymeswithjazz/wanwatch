@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Clock, RotateCcw, Save, AlertCircle, HelpCircle } from 'lucide-react';
+import { RotateCcw, Save, AlertCircle, HelpCircle } from 'lucide-react';
 
 interface MonitoringIntervals {
   checkIntervalSeconds: number;
@@ -164,30 +163,14 @@ export function MonitoringIntervals() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Monitoring Intervals
-          </CardTitle>
-          <CardDescription>Loading...</CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="space-y-6">
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          Monitoring Intervals
-        </CardTitle>
-        <CardDescription>
-          Configure how frequently WanWatch checks your internet connection
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="space-y-6 pt-4">
         {/* Info Alert */}
         <div className="bg-muted/50 border border-border rounded-lg p-4 flex gap-3">
           <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
@@ -302,11 +285,10 @@ export function MonitoringIntervals() {
           </Button>
         </div>
 
-        {/* Warning Note */}
-        <p className="text-xs text-muted-foreground">
-          Note: Changing intervals will restart the monitoring system. This is normal and brief.
-        </p>
-      </CardContent>
-    </Card>
+      {/* Warning Note */}
+      <p className="text-xs text-muted-foreground">
+        Note: Changing intervals will restart the monitoring system. This is normal and brief.
+      </p>
+    </div>
   );
 }
