@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  Column,
   ColumnDef,
   ColumnFiltersState,
   SortingState,
@@ -196,11 +197,11 @@ export function DataTable<TData, TValue>({
 }
 
 // Helper component for sortable column headers
-export function DataTableColumnHeader({
+export function DataTableColumnHeader<TData, TValue>({
   column,
   title,
 }: {
-  column: any;
+  column: Column<TData, TValue>;
   title: string;
 }) {
   return (

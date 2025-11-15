@@ -49,6 +49,9 @@ model SystemLog {
   level     String
   message   String
   metadata  String?
+
+  @@index([timestamp])
+  @@index([level, timestamp])
 }
 
 model MonitoringTarget {

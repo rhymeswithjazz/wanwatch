@@ -24,7 +24,7 @@ jest.mock('@/lib/logger', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    withTiming: jest.fn((name, fn) => fn()),
+    withTiming: jest.fn((_name, fn) => fn()),
     logLifecycle: jest.fn(),
   },
 }));

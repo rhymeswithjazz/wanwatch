@@ -9,8 +9,7 @@
  */
 
 import { ConnectivityChecker, ConnectivityResult } from '../connectivity-checker';
-import { createMockPrismaClient, MockPrismaClient } from '../../../__tests__/helpers/prisma-mock';
-import { createMockActiveOutage, createMockResolvedOutage } from '../../../__tests__/factories/outage.factory';
+import { createMockActiveOutage } from '../../../__tests__/factories/outage.factory';
 
 // Mock dependencies
 jest.mock('@/lib/db', () => ({
@@ -390,7 +389,7 @@ describe('ConnectivityChecker', () => {
 
     describe('when disconnected with active outage', () => {
       const activeOutage = createMockActiveOutage({
-        id: 1,
+        id: '1',
         checksCount: 5,
       });
 
@@ -436,7 +435,7 @@ describe('ConnectivityChecker', () => {
 
     describe('when connected with active outage (recovery)', () => {
       const activeOutage = createMockActiveOutage({
-        id: 1,
+        id: '1',
         startTime: new Date('2025-01-15T12:00:00Z'),
         checksCount: 10,
       });

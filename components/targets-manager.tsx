@@ -9,11 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
+type TargetType = 'dns' | 'domain' | 'ip';
+
 interface MonitoringTarget {
   id: number;
   target: string;
   displayName: string;
-  type: string;
+  type: TargetType;
   isEnabled: boolean;
   priority: number;
   createdAt: string;
@@ -40,10 +42,16 @@ export default function TargetsManager() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    target: string;
+    displayName: string;
+    type: TargetType;
+    priority: number;
+    isEnabled: boolean;
+  }>({
     target: '',
     displayName: '',
-    type: 'domain' as 'dns' | 'domain' | 'ip',
+    type: 'domain',
     priority: 100,
     isEnabled: true,
   });
@@ -292,7 +300,7 @@ export default function TargetsManager() {
                   <Label htmlFor="type">Type *</Label>
                   <Select
                     value={formData.type}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value as any }))}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value as TargetType }))}
                   >
                     <SelectTrigger id="type">
                       <SelectValue />

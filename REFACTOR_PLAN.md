@@ -1941,4 +1941,866 @@ After 1 week of production use:
 
 ---
 
+---
+
+## Phase 5: Post-Launch Code Quality & Performance (NEW - 2025-11-15)
+
+**Created**: 2025-11-15
+**Status**: 📋 PLANNED
+**Overall Progress**: 0% - Analysis complete, ready to execute
+
+### Analysis Summary
+
+After comprehensive codebase analysis, identified **27 findings** across 5 categories:
+- **0 Critical** issues (excellent!)
+- **1 High** priority issue (SystemLog indexes)
+- **7 Medium** priority issues (layout, performance, code quality)
+- **11 Low** priority issues (minor improvements)
+- **5 Very Low** priority issues (polish)
+
+**Overall Grade: B+** - Codebase is production-ready with room for optimization.
+
+---
+
+### 5.1 Type Safety Improvements
+
+**Severity**: Medium
+**Files**:
+- `components/ui/data-table.tsx:203`
+- `components/targets-manager.tsx:295`
+
+**Issues**:
+1. `DataTableColumnHeader` uses `any` type instead of proper TanStack Table types
+2. Type assertion in TargetsManager uses `as any`
+
+**Action Items**:
+- [ ] Fix DataTableColumnHeader to use `Column<TData, TValue>` from TanStack
+- [ ] Define `TargetType` union and use proper type assertion
+- [ ] Verify TypeScript compiler shows zero errors
+- [ ] Test data table sorting/filtering still works
+
+**Implementation**:
+
+**Step 1**: Fix `components/ui/data-table.tsx`:
+```typescript
+import { Column } from "@tanstack/react-table";
+
+export function DataTableColumnHeader<TData, TValue>({
+  column,
+  title,
+}: {
+  column: Column<TData, TValue>;  // ✅ Proper typing
+  title: string;
+}) {
+  // Implementation remains the same
+}
+```
+
+**Step 2**: Fix `components/targets-manager.tsx`:
+```typescript
+type TargetType = 'dns' | 'domain' | 'ip';
+
+// In Select component:
+onValueChange={(value) => setFormData((prev) => ({
+  ...prev,
+  type: value as TargetType  // ✅ Proper type assertion
+}))}
+```
+
+**Estimated Time**: 30 minutes
+**Dependencies**: None
+**Risk Level**: Low
+**Impact**: Better type safety, improved IDE autocomplete
+
+---
+
+### 5.2 Database Performance - Add SystemLog Indexes
+
+**Severity**: HIGH
+**File**: `prisma/schema.prisma`
+
+**Issue**: SystemLog table is missing indexes for common query patterns, causing slow queries as log data grows.
+
+**Current Query Pattern** (in `/api/logs`):
+```typescript
+prisma.systemLog.findMany({
+  where: {
+    level?: string;
+    message?: { contains: string };
+    timestamp?: { gte?: Date; lte?: Date };
+  },
+  orderBy: { timestamp: 'desc' },
+  take: 100,
+})
+```
+
+**Problem**: Without indexes, this requires full table scan on every query.
+
+**Action Items**:
+- [ ] Add composite index for timestamp + level (most common filter)
+- [ ] Add standalone timestamp index for DESC ordering
+- [ ] Run migration to create indexes
+- [ ] Test logs page performance improvement
+- [ ] Verify EXPLAIN QUERY PLAN shows index usage
+
+**Implementation**:
+
+Update `prisma/schema.prisma`:
+```prisma
+model SystemLog {
+  id        Int      @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  level     String
+  message   String
+  metadata  String?
+
+  @@index([timestamp])                // For DESC ordering
+  @@index([level, timestamp])         // For filtered queries
+  @@index([timestamp(sort: Desc)])    // Optimized DESC index (if supported)
+}
+```
+
+Run migration:
+```bash
+npx prisma migrate dev --name add_systemlog_indexes
+```
+
+**Expected Impact**:
+- Query time reduction: 10-100x on large datasets (>10,000 logs)
+- Page load improvement: Logs page 50-90% faster
+- Scalability: Handles 100,000+ log entries efficiently
+
+**Estimated Time**: 20 minutes
+**Dependencies**: None
+**Risk Level**: Very Low (indexes don't change data)
+**Impact**: HIGH - Significant performance improvement as log data grows
+
+---
+
+### 5.3 Fix Speed Test Page Layout Inconsistency
+
+**Severity**: Medium
+**File**: `app/speedtest/page.tsx`
+
+**Issue**: Speed test page uses non-standard layout pattern, causing:
+- Visual inconsistency with other pages
+- Potential layout shift issues
+- Different spacing and styling
+
+**Current Problems**:
+- Uses `min-h-screen flex flex-col` wrapper (other pages don't)
+- Uses `border-b` instead of `mb-6` for header spacing
+- Uses `px-6 py-4` instead of responsive `p-4 sm:p-6 lg:p-8`
+- Different heading styling (`text-3xl` vs `text-2xl`)
+
+**Action Items**:
+- [ ] Refactor to match standard page layout pattern (see CLAUDE.md)
+- [ ] Use same container structure as dashboard/logs/settings pages
+- [ ] Apply consistent spacing with `mb-6` for header
+- [ ] Use responsive padding breakpoints
+- [ ] Test on mobile/tablet/desktop to verify layout
+
+**Implementation**:
+
+```typescript
+export default async function SpeedTestPage() {
+  const handleSignOut = async () => {
+    'use server';
+    await signOut();
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      {/* Standard Header Section */}
+      <div className="flex justify-between items-center mb-6">
+        <Header />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <NavMenu onSignOut={handleSignOut} />
+        </div>
+      </div>
+
+      {/* Standard Page Title Section */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-semibold text-muted-foreground">
+          Speed Tests
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Monitor your internet connection speed over time
+        </p>
+      </div>
+
+      {/* Page Content */}
+      <SpeedTestDisplay />
+    </div>
+  );
+}
+```
+
+**Estimated Time**: 30 minutes
+**Dependencies**: None
+**Risk Level**: Low
+**Impact**: Better UX consistency, no layout shifts
+
+---
+
+### 5.4 Performance - Add Limits to Chart Data Query
+
+**Severity**: Medium
+**File**: `app/api/stats/chart-data/route.ts`
+
+**Issue**: Query fetches ALL connection checks since cutoff without limit. For "all" time period, this could be 100,000+ records, causing:
+- Slow database queries
+- High memory usage
+- Long API response times
+- Poor mobile performance
+
+**Current Code**:
+```typescript
+const checks = await prisma.connectionCheck.findMany({
+  where: {
+    timestamp: { gte: cutoffTime }
+  },
+  orderBy: { timestamp: 'asc' },
+  select: {
+    timestamp: true,
+    isConnected: true,
+  }
+});
+```
+
+**Action Items**:
+- [ ] Add MAX_POINTS constant (50,000 reasonable for charts)
+- [ ] Add `take: MAX_POINTS` to query
+- [ ] Update downsampling logic to handle limited dataset
+- [ ] Test all time periods still display correctly
+- [ ] Verify chart accuracy maintained
+
+**Implementation**:
+
+```typescript
+const MAX_POINTS = 50000; // ~6 months at 5-min intervals
+
+const checks = await prisma.connectionCheck.findMany({
+  where: {
+    timestamp: { gte: cutoffTime }
+  },
+  orderBy: { timestamp: 'asc' },
+  take: MAX_POINTS,  // ✅ Prevent unbounded queries
+  select: {
+    timestamp: true,
+    isConnected: true,
+  }
+});
+
+// Add warning if we hit the limit
+if (checks.length === MAX_POINTS) {
+  await logger.warn('Chart data query hit MAX_POINTS limit', {
+    period,
+    cutoffTime,
+    maxPoints: MAX_POINTS,
+  });
+}
+```
+
+**Estimated Time**: 20 minutes
+**Dependencies**: None
+**Risk Level**: Low
+**Impact**: Better performance for long-running instances
+
+---
+
+### 5.5 Code Quality - Extract Duplicate runCheck Function
+
+**Severity**: Medium
+**File**: `lib/monitoring/scheduler.ts`
+
+**Issue**: The `runCheck` function is duplicated in two places:
+- Lines 29-59 in `startMonitoring()`
+- Lines 152-182 in `restartConnectivityMonitoring()`
+
+**Problems**:
+- Code duplication (~30 lines duplicated)
+- Maintenance burden (changes must be made twice)
+- Potential for bugs if one is updated and other isn't
+
+**Action Items**:
+- [ ] Extract `runCheck` to shared function
+- [ ] Pass required dependencies as parameters
+- [ ] Update both call sites to use shared function
+- [ ] Run tests to verify behavior unchanged
+- [ ] Verify monitoring still works correctly
+
+**Implementation**:
+
+```typescript
+// Extract to module-level function
+function createCheckFunction(
+  checker: ConnectivityChecker,
+  getCurrentMode: () => boolean
+): () => Promise<void> {
+  return async () => {
+    const mode = getCurrentMode() ? 'outage' : 'normal';
+    logger.debug('Running connectivity check...', { mode });
+
+    try {
+      const result = await checker.checkConnection();
+
+      if (result.isConnected) {
+        if (isInOutageMode) {
+          logger.info('Connection restored - switching back to normal mode');
+          isInOutageMode = false;
+          await restartConnectivityMonitoring();
+        }
+      } else {
+        if (!isInOutageMode) {
+          logger.info('Outage detected - switching to rapid checking mode', {
+            interval: `${outageCheckInterval}s`
+          });
+          isInOutageMode = true;
+          await restartConnectivityMonitoring();
+        }
+      }
+    } catch (error) {
+      await logger.error('Error during connectivity check', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+}
+
+// Use in both places:
+export async function startMonitoring() {
+  const checker = new ConnectivityChecker();
+  const runCheck = createCheckFunction(checker, () => isInOutageMode);
+  // ... rest of implementation
+}
+
+export async function restartConnectivityMonitoring() {
+  const checker = new ConnectivityChecker();
+  const runCheck = createCheckFunction(checker, () => isInOutageMode);
+  // ... rest of implementation
+}
+```
+
+**Estimated Time**: 45 minutes
+**Dependencies**: None
+**Risk Level**: Medium (requires careful testing)
+**Impact**: Better maintainability, reduced code duplication
+
+---
+
+### 5.6 Add Missing Error Boundaries
+
+**Severity**: Medium
+**Files**: Need to create:
+- `app/logs/error.tsx`
+- `app/settings/error.tsx`
+- `app/speedtest/error.tsx`
+
+**Issue**: Only dashboard has error boundary. Other pages rely on Next.js default error handling, which provides poor UX.
+
+**Action Items**:
+- [ ] Create error.tsx for logs page
+- [ ] Create error.tsx for settings page
+- [ ] Create error.tsx for speedtest page
+- [ ] Test error boundaries by breaking API calls
+- [ ] Verify reset functionality works
+
+**Implementation**:
+
+Create `app/logs/error.tsx`:
+```typescript
+'use client';
+
+export default function LogsError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return (
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="bg-destructive/10 border border-destructive/20 text-destructive p-8 rounded-lg">
+        <h2 className="text-2xl font-bold mb-3">Failed to load logs</h2>
+        <p className="mb-2 text-destructive/90">
+          Unable to load system logs. Please try again.
+        </p>
+        {error.message && (
+          <p className="text-sm font-mono bg-destructive/5 p-2 rounded mb-4">
+            {error.message}
+          </p>
+        )}
+        <div className="flex gap-3">
+          <button
+            onClick={reset}
+            className="px-4 py-2 bg-destructive text-white rounded-md hover:bg-destructive/90"
+          >
+            Try again
+          </button>
+          <button
+            onClick={() => window.location.href = '/dashboard'}
+            className="px-4 py-2 bg-muted text-foreground rounded-md hover:bg-muted/80"
+          >
+            Go to dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+Repeat for settings and speedtest pages with appropriate messaging.
+
+**Estimated Time**: 30 minutes
+**Dependencies**: None
+**Risk Level**: Low
+**Impact**: Better error handling and UX
+
+---
+
+### 5.7 Improve Cache Headers
+
+**Severity**: Low
+**Files**:
+- `app/api/network-info/route.ts`
+- `app/api/stats/chart-data/route.ts`
+
+**Issue**: Some API endpoints have very short or no cache headers, causing unnecessary database queries.
+
+**Action Items**:
+- [ ] Add cache headers to network-info API (data changes infrequently)
+- [ ] Increase chart-data cache from 10s to 30s
+- [ ] Test caching behavior with browser DevTools
+- [ ] Verify stale-while-revalidate works correctly
+
+**Implementation**:
+
+**Network Info API**:
+```typescript
+return NextResponse.json(networkInfo, {
+  headers: {
+    'Cache-Control': 'private, max-age=600, stale-while-revalidate=1200',
+    // Cache for 10 minutes, allow stale for 20 minutes while revalidating
+  },
+});
+```
+
+**Chart Data API**:
+```typescript
+headers: {
+  'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+  // Increased from 10s to 30s cache, 60s stale tolerance
+},
+```
+
+**Estimated Time**: 15 minutes
+**Dependencies**: None
+**Risk Level**: Very Low
+**Impact**: Reduced database load, faster page loads
+
+---
+
+### 5.8 Fix Minor Code Quality Issues
+
+**Severity**: Low
+**Multiple Files**
+
+**Issues**:
+1. Magic numbers in scheduler (timeouts without constants)
+2. Inconsistent header spacing in logs page (`mb-2` vs `mb-6`)
+3. Missing ESLint disable comments explaining why
+4. Settings uses delete-then-create instead of upsert
+
+**Action Items**:
+- [ ] Extract magic numbers to named constants
+- [ ] Fix logs page spacing to match other pages
+- [ ] Add explanatory comments for ESLint disables
+- [ ] Refactor settings save to use upsert pattern
+- [ ] Run linter to catch any other issues
+
+**Implementation**:
+
+**Scheduler constants**:
+```typescript
+const SPEED_TEST_STARTUP_DELAY_MS = 30000;
+const RESTART_CLEANUP_DELAY_MS = 100;
+const CONNECTIVITY_CHECK_INITIAL_DELAY_MS = 5000;
+
+setTimeout(runSpeedTest, SPEED_TEST_STARTUP_DELAY_MS);
+```
+
+**Logs page spacing**:
+```typescript
+// Change from mb-2 to mb-6
+<div className="flex justify-between items-center mb-6">
+```
+
+**Settings upsert pattern** (in `lib/settings.ts`):
+```typescript
+const SETTINGS_ID = 1;
+
+export async function saveMonitoringIntervals(
+  intervals: MonitoringIntervals
+): Promise<void> {
+  await prisma.settings.upsert({
+    where: { id: SETTINGS_ID },
+    create: {
+      id: SETTINGS_ID,
+      checkIntervalSeconds: intervals.checkIntervalSeconds,
+      outageCheckIntervalSeconds: intervals.outageCheckIntervalSeconds,
+    },
+    update: {
+      checkIntervalSeconds: intervals.checkIntervalSeconds,
+      outageCheckIntervalSeconds: intervals.outageCheckIntervalSeconds,
+    },
+  });
+}
+```
+
+**Estimated Time**: 45 minutes
+**Dependencies**: None
+**Risk Level**: Low
+**Impact**: Cleaner code, better maintainability
+
+---
+
+### 5.9 Add Rate Limiting to Manual Speed Tests
+
+**Severity**: Low
+**File**: `app/api/speedtest/run/route.ts`
+
+**Issue**: Users can trigger unlimited manual speed tests, potentially:
+- Overloading Speedtest CLI
+- Consuming excessive bandwidth
+- Skewing speed test data with back-to-back tests
+
+**Action Items**:
+- [ ] Add simple in-memory rate limiter
+- [ ] Set 1-minute cooldown between manual tests
+- [ ] Return 429 status if rate limit exceeded
+- [ ] Add helpful error message explaining cooldown
+- [ ] Test rate limiting works correctly
+
+**Implementation**:
+
+```typescript
+// At module level
+const lastTestTime = new Map<string, number>();
+const COOLDOWN_MS = 60000; // 1 minute
+
+export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Rate limiting
+  const userId = session.user.email;
+  const now = Date.now();
+  const lastTest = lastTestTime.get(userId);
+
+  if (lastTest && now - lastTest < COOLDOWN_MS) {
+    const remainingSeconds = Math.ceil((COOLDOWN_MS - (now - lastTest)) / 1000);
+    return NextResponse.json(
+      {
+        error: `Please wait ${remainingSeconds} seconds before running another speed test`
+      },
+      { status: 429 }
+    );
+  }
+
+  // Record test time
+  lastTestTime.set(userId, now);
+
+  // ... rest of implementation
+}
+```
+
+**Estimated Time**: 20 minutes
+**Dependencies**: None
+**Risk Level**: Very Low
+**Impact**: Prevents abuse of manual speed test feature
+
+---
+
+### 5.10 Add Metadata Export to Settings Page
+
+**Severity**: Low
+**File**: `app/settings/page.tsx`
+
+**Issue**: Settings page is missing metadata export for SEO and browser tab title.
+
+**Action Items**:
+- [ ] Add metadata export to settings page
+- [ ] Verify tab title updates correctly
+- [ ] Test Open Graph tags if sharing links
+
+**Implementation**:
+
+```typescript
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Settings',
+  description: 'Configure monitoring targets, intervals, and application preferences',
+};
+
+export default async function SettingsPage() {
+  // ... implementation
+}
+```
+
+**Estimated Time**: 5 minutes
+**Dependencies**: None
+**Risk Level**: Very Low
+**Impact**: Better SEO, proper browser tab titles
+
+---
+
+## Phase 5 Implementation Plan
+
+### Week 1: High Priority Performance & Type Safety
+**Focus**: Database performance and critical type safety issues
+
+1. ✅ Day 1: Add SystemLog indexes (5.2) - **HIGH PRIORITY**
+2. ✅ Day 2: Add chart data query limits (5.4)
+3. ✅ Day 3: Fix type safety issues (5.1)
+4. ✅ Day 4: Test performance improvements, verify no regressions
+
+**Success Criteria**:
+- Logs page loads 50%+ faster with large datasets
+- Zero TypeScript `any` types in codebase
+- Chart data queries never exceed 50,000 records
+
+### Week 2: UX Consistency & Error Handling
+**Focus**: Layout consistency and error boundaries
+
+5. ✅ Day 1: Fix speed test page layout (5.3)
+6. ✅ Day 2: Add error boundaries to all pages (5.6)
+7. ✅ Day 3: Add metadata to settings page (5.10)
+8. ✅ Day 4: Test all pages for consistency
+
+**Success Criteria**:
+- All pages use identical layout pattern
+- Error boundaries catch and display errors gracefully
+- All pages have proper metadata
+
+### Week 3: Code Quality & Maintainability
+**Focus**: Reduce duplication and improve code quality
+
+9. ✅ Day 1: Extract duplicate runCheck function (5.5) - **REQUIRES CAREFUL TESTING**
+10. ✅ Day 2: Fix minor code quality issues (5.8)
+11. ✅ Day 3: Improve cache headers (5.7)
+12. ✅ Day 4: Add rate limiting to speed tests (5.9)
+
+**Success Criteria**:
+- No duplicate code in scheduler
+- Consistent code patterns throughout
+- Better cache hit rates
+
+### Week 4: Testing & Documentation
+**Focus**: Comprehensive testing and documentation updates
+
+13. ✅ Day 1: Run full test suite, add new tests if needed
+14. ✅ Day 2: Performance testing (Lighthouse, database query analysis)
+15. ✅ Day 3: Update CLAUDE.md with new patterns
+16. ✅ Day 4: Final review, merge to main
+
+**Success Criteria**:
+- All tests passing
+- Lighthouse score improvement
+- Documentation reflects current state
+
+---
+
+## Testing Strategy for Phase 5
+
+### Performance Testing
+
+**Database Query Analysis**:
+```bash
+# Before indexes - measure baseline
+sqlite3 prisma/wanwatch.db "EXPLAIN QUERY PLAN SELECT * FROM SystemLog WHERE level = 'ERROR' ORDER BY timestamp DESC LIMIT 100;"
+
+# After indexes - verify index usage
+sqlite3 prisma/wanwatch.db "EXPLAIN QUERY PLAN SELECT * FROM SystemLog WHERE level = 'ERROR' ORDER BY timestamp DESC LIMIT 100;"
+# Should show "USING INDEX" instead of "SCAN TABLE"
+```
+
+**Lighthouse Performance**:
+```bash
+# Before optimizations
+npx lighthouse http://localhost:3000/dashboard --view
+
+# After optimizations
+npx lighthouse http://localhost:3000/dashboard --view
+
+# Target metrics:
+# - Performance: 90+ (up from ~70-80)
+# - First Contentful Paint: < 1.5s
+# - Largest Contentful Paint: < 2.5s
+# - Total Blocking Time: < 300ms
+```
+
+**Cache Hit Rate Testing**:
+```bash
+# Monitor cache headers in browser DevTools
+# Verify:
+# - chart-data: 30s cache, 60s stale
+# - network-info: 600s cache, 1200s stale
+# - stats: 30s cache, 60s stale
+```
+
+### Functional Testing
+
+**Test Checklist**:
+- [ ] All pages load without errors
+- [ ] Layout consistent across all pages (dashboard, logs, settings, speedtest)
+- [ ] Error boundaries trigger on forced errors
+- [ ] Rate limiting prevents rapid speed tests
+- [ ] Monitoring still works with extracted runCheck function
+- [ ] Settings upsert works correctly
+- [ ] TypeScript compiles with zero errors
+- [ ] All existing tests still pass
+- [ ] No console errors in browser
+
+### Regression Testing
+
+**Critical Paths to Test**:
+1. Monitoring loop (normal mode → outage mode → normal mode)
+2. Dashboard polling and chart updates
+3. Logs viewer search and filtering
+4. Settings changes (intervals, targets, theme)
+5. Speed test manual trigger and history
+6. Authentication flow (login, logout, protected routes)
+
+---
+
+## Migration Notes for Phase 5
+
+### Database Migration Required
+
+**Add SystemLog indexes**:
+```bash
+npx prisma migrate dev --name add_systemlog_indexes
+```
+
+**Production deployment**:
+```bash
+npx prisma migrate deploy
+```
+
+**Expected migration time**:
+- Small datasets (< 10,000 logs): < 1 second
+- Large datasets (100,000+ logs): 5-30 seconds
+- Zero downtime - indexes added while running
+
+### No Breaking Changes
+
+All changes in Phase 5 are backwards compatible:
+- API responses unchanged
+- Database schema only adds indexes (no data changes)
+- Component interfaces unchanged
+- Environment variables unchanged
+
+### Cache Behavior Changes
+
+**Users may notice**:
+- Network info updates less frequently (10 min cache)
+- Chart data slightly less real-time (30s vs 10s cache)
+- Overall: Better performance, minimal UX impact
+
+---
+
+## Success Metrics for Phase 5
+
+### Performance Improvements (Targets)
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Logs page load (10k+ logs) | 500-1000ms | < 100ms | 80-90% faster |
+| Chart data query (all time) | Unbounded | < 50k records | Predictable |
+| Lighthouse performance | 70-80 | 90+ | +10-20 points |
+| TypeScript `any` usage | 2 instances | 0 instances | 100% elimination |
+| Code duplication | ~30 lines | 0 lines | 100% reduction |
+
+### Code Quality Improvements
+
+- ✅ Zero `any` types in codebase
+- ✅ All pages follow standard layout pattern
+- ✅ All pages have error boundaries
+- ✅ All pages have proper metadata
+- ✅ No duplicate code in scheduler
+- ✅ Consistent code patterns throughout
+- ✅ Better cache efficiency
+
+### Developer Experience
+
+- Faster TypeScript compilation
+- Better IDE autocomplete (no `any` types)
+- Easier to maintain (no duplication)
+- Clear error messages
+- Consistent patterns across pages
+
+---
+
+## Post-Phase 5 Recommendations
+
+### Future Enhancements (Not in Scope)
+
+1. **Automated Data Retention Policy**
+   - Implement cron job to clean old ConnectionCheck records
+   - Configurable retention period (default: 90 days)
+   - Keep outage records indefinitely
+
+2. **Advanced Caching Layer**
+   - Redis for multi-instance deployments
+   - Shared cache across containers
+   - Pub/sub for real-time updates
+
+3. **API Rate Limiting (Global)**
+   - Rate limit all API endpoints, not just speed tests
+   - Use Redis or in-memory store
+   - Configure per-endpoint limits
+
+4. **Monitoring Dashboard Improvements**
+   - Real-time WebSocket updates (no polling)
+   - More granular time periods (1m, 30m)
+   - Export data to CSV/JSON
+
+5. **Enhanced Error Tracking**
+   - Sentry/Rollbar integration
+   - Error aggregation and alerting
+   - Performance monitoring
+
+---
+
+## Appendix: File Changes for Phase 5
+
+### Files to Create
+- `app/logs/error.tsx` - Error boundary for logs page
+- `app/settings/error.tsx` - Error boundary for settings page
+- `app/speedtest/error.tsx` - Error boundary for speedtest page
+
+### Files to Modify
+- `components/ui/data-table.tsx` - Fix `any` type in DataTableColumnHeader
+- `components/targets-manager.tsx` - Fix type assertion
+- `prisma/schema.prisma` - Add SystemLog indexes
+- `app/speedtest/page.tsx` - Fix layout to match standard pattern
+- `app/api/stats/chart-data/route.ts` - Add MAX_POINTS limit
+- `lib/monitoring/scheduler.ts` - Extract duplicate runCheck function
+- `app/logs/page.tsx` - Fix header spacing (mb-2 → mb-6)
+- `app/api/network-info/route.ts` - Add cache headers
+- `lib/settings.ts` - Change to upsert pattern
+- `app/api/speedtest/run/route.ts` - Add rate limiting
+- `app/settings/page.tsx` - Add metadata export
+
+### Database Migrations
+- `20251115_add_systemlog_indexes` - Add SystemLog performance indexes
+
+---
+
 **End of Refactoring Plan**

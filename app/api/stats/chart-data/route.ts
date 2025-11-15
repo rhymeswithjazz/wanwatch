@@ -5,6 +5,13 @@ import { TimePeriod, ChartDataPoint } from '@/types/dashboard';
 import { logger } from '@/lib/logger';
 
 /**
+ * Maximum number of connection checks to fetch from database
+ * Prevents unbounded queries for "all" time period
+ * ~6 months at 5-minute intervals = 52,560 checks
+ */
+const MAX_POINTS = 50000;
+
+/**
  * Calculate cutoff time based on the selected time period
  */
 function getCutoffTime(period: TimePeriod): Date {
@@ -150,16 +157,28 @@ export async function GET(request: Request) {
 
     // Fetch only relevant data from database
     // Only select the fields we need for charting (timestamp, isConnected)
+    // Limit to MAX_POINTS to prevent unbounded queries
     const checks = await prisma.connectionCheck.findMany({
       where: {
         timestamp: { gte: cutoffTime }
       },
       orderBy: { timestamp: 'asc' },
+      take: MAX_POINTS,
       select: {
         timestamp: true,
         isConnected: true,
       }
     });
+
+    // Warn if we hit the limit - indicates data truncation
+    if (checks.length === MAX_POINTS) {
+      await logger.warn('Chart data query hit MAX_POINTS limit - data truncated', {
+        period,
+        cutoffTime: cutoffTime.toISOString(),
+        maxPoints: MAX_POINTS,
+        userId: session.user?.email ?? undefined
+      });
+    }
 
     // Perform server-side downsampling
     const chartData = downsampleData(checks, targetBuckets);
