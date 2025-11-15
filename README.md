@@ -226,35 +226,59 @@ WanWatch includes optional internet speed testing powered by Ookla Speedtest (th
 - Automatic periodic speed tests (configurable interval)
 - Download and upload speed measurements (Mbps)
 - Ping and jitter metrics
+- Server location and ISP information
 - Historical speed test data with charts
+- Manual "Run Test Now" button
 - Dedicated Speed Tests page in the dashboard
 
 **Setup:**
 
-1. **Enable in `.env` file:**
+1. **Install Ookla Speedtest CLI:**
+
+   **macOS (Homebrew):**
+   ```bash
+   brew tap teamookla/speedtest
+   brew install speedtest
+   ```
+
+   **Ubuntu/Debian:**
+   ```bash
+   curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+   sudo apt-get install speedtest
+   ```
+
+   **CentOS/RHEL:**
+   ```bash
+   curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.rpm.sh | sudo bash
+   sudo yum install speedtest
+   ```
+
+   **Docker:** The official Ookla CLI must be installed in your Dockerfile (add to existing Dockerfile before the final stage)
+
+2. **Enable in `.env` file:**
    ```env
    ENABLE_SPEED_TEST=true
    SPEED_TEST_INTERVAL_SECONDS=1800  # 30 minutes recommended
    ```
 
-2. **Restart the application:**
+3. **Restart the application:**
    ```bash
    docker-compose restart
    # or
    npm run dev
    ```
 
-3. **First run:**
-   - The Ookla CLI binary will be automatically downloaded on first test
-   - License terms are automatically accepted (see Important Notes below)
-   - First test may take 1-2 minutes
+4. **First run:**
+   - License terms are automatically accepted on first test (see Important Notes below)
+   - First test may take 30-60 seconds
 
 **Important Notes:**
 - ⚠️ **License**: Ookla Speedtest is **free for personal, non-commercial use only**
+- ⚠️ **Installation Required**: The Ookla CLI binary must be installed on the system
 - **Recommended interval**: 30-60 minutes (1800-3600 seconds) to avoid excessive testing
 - **Test duration**: Each test takes approximately 30-60 seconds
 - **Network impact**: Tests consume bandwidth during execution
-- **CLI download**: ~10-20MB binary downloaded automatically on first run
+- **Manual testing**: Use the "Run Speed Test Now" button to test on demand
 
 ### System Logs
 
