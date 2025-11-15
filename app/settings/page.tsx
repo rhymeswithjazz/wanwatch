@@ -18,25 +18,23 @@ export default async function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 max-w-7xl">
-        <div className="flex justify-between items-center mb-6">
-          <Header />
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <NavMenu onSignOut={handleSignOut} />
-          </div>
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="flex justify-between items-center mb-6">
+        <Header />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <NavMenu onSignOut={handleSignOut} />
         </div>
-
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold">Settings</h2>
-          <p className="text-muted-foreground mt-1">
-            Manage monitoring targets and application configuration
-          </p>
-        </div>
-
-        <SettingsTabs />
       </div>
+
+      <div className="mb-6">
+        <h2 className="text-2xl font-semibold text-muted-foreground">Settings</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage monitoring targets and application configuration
+        </p>
+      </div>
+
+      <SettingsTabs />
     </div>
   );
 }
