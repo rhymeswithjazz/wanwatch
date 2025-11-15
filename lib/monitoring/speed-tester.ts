@@ -69,7 +69,16 @@ export class SpeedTester {
         timeout: 60000,
       });
 
-      const result: OoklaResult = JSON.parse(stdout);
+      // Extract JSON from stdout (may have license text before JSON)
+      // Find the line that starts with { and contains "type":"result"
+      const lines = stdout.split('\n');
+      const jsonLine = lines.find(line => line.trim().startsWith('{') && line.includes('"type"'));
+
+      if (!jsonLine) {
+        throw new Error('No JSON output found from speedtest CLI');
+      }
+
+      const result: OoklaResult = JSON.parse(jsonLine);
 
       const speedTestResult: SpeedTestResult = {
         downloadMbps: this.bytesToMbps(result.download.bandwidth),
