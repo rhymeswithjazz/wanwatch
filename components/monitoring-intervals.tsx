@@ -202,53 +202,63 @@ export function MonitoringIntervals() {
 
         {/* Normal Interval */}
         <div className="space-y-2">
-          <Label htmlFor="normalInterval">
-            Normal Mode Interval <span className="text-muted-foreground font-normal">(when connected)</span>
-          </Label>
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <Input
-                id="normalInterval"
-                type="number"
-                min={10}
-                max={3600}
-                value={normalInterval}
-                onChange={(e) => setNormalInterval(parseInt(e.target.value) || 0)}
-                disabled={saving}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatTime(normalInterval)} • {checksPerHour(normalInterval)} checks/hour
-              </p>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="normalInterval">
+              Normal Mode Interval <span className="text-muted-foreground font-normal">(when connected)</span>
+            </Label>
+            <div className="group relative">
+              <AlertCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-popover border border-border rounded-md shadow-lg text-xs z-10">
+                Valid range: 10-3600 seconds (10s - 1 hour)
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground w-32">
-              10-3600 seconds
-            </div>
+          </div>
+          <div className="flex gap-3 items-center">
+            <Input
+              id="normalInterval"
+              type="number"
+              min={10}
+              max={3600}
+              value={normalInterval}
+              onChange={(e) => setNormalInterval(parseInt(e.target.value) || 0)}
+              disabled={saving}
+              className="w-32"
+            />
+            <span className="text-sm text-muted-foreground">seconds</span>
+            <span className="text-sm text-muted-foreground ml-auto">
+              {formatTime(normalInterval)} • {checksPerHour(normalInterval)} checks/hour
+            </span>
           </div>
         </div>
 
         {/* Outage Interval */}
         <div className="space-y-2">
-          <Label htmlFor="outageInterval">
-            Outage Mode Interval <span className="text-muted-foreground font-normal">(during outages)</span>
-          </Label>
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <Input
-                id="outageInterval"
-                type="number"
-                min={5}
-                max={600}
-                value={outageInterval}
-                onChange={(e) => setOutageInterval(parseInt(e.target.value) || 0)}
-                disabled={saving}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatTime(outageInterval)} • {checksPerHour(outageInterval)} checks/hour
-              </p>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="outageInterval">
+              Outage Mode Interval <span className="text-muted-foreground font-normal">(during outages)</span>
+            </Label>
+            <div className="group relative">
+              <AlertCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-popover border border-border rounded-md shadow-lg text-xs z-10">
+                Valid range: 5-600 seconds (5s - 10 minutes)
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground w-32">
-              5-600 seconds
-            </div>
+          </div>
+          <div className="flex gap-3 items-center">
+            <Input
+              id="outageInterval"
+              type="number"
+              min={5}
+              max={600}
+              value={outageInterval}
+              onChange={(e) => setOutageInterval(parseInt(e.target.value) || 0)}
+              disabled={saving}
+              className="w-32"
+            />
+            <span className="text-sm text-muted-foreground">seconds</span>
+            <span className="text-sm text-muted-foreground ml-auto">
+              {formatTime(outageInterval)} • {checksPerHour(outageInterval)} checks/hour
+            </span>
           </div>
         </div>
 
