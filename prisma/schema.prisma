@@ -49,3 +49,18 @@ model SystemLog {
   message   String
   metadata  String?
 }
+
+model MonitoringTarget {
+  id          Int      @id @default(autoincrement())
+  target      String   @unique
+  displayName String
+  type        String   // 'dns' | 'domain' | 'ip'
+  isEnabled   Boolean  @default(true)
+  priority    Int      @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isEnabled])
+  @@index([priority])
+  @@index([isEnabled, priority])
+}

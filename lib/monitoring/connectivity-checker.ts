@@ -14,29 +14,69 @@ export interface ConnectivityResult {
 }
 
 export class ConnectivityChecker {
-  private targets = [
-    '8.8.8.8',      // Google DNS
-    '1.1.1.1',      // Cloudflare DNS
-    'google.com',    // Domain resolution test
-    'espn.com',
-    'yahoo.com',
-    'bing.com',
-    'duckduckgo.com',
-    'reddit.com',
-    'twitter.com',
-    'facebook.com',
-    'instagram.com',
-    'youtube.com',
-    'twitch.tv',
-    'discord.com',
-    'telegram.org',
-  ];
+  private targetsCache: string[] = [];
+  private lastCacheUpdate = 0;
+  private readonly CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+  /**
+   * Load enabled targets from database, ordered by priority
+   * Uses caching to avoid database queries on every check
+   */
+  private async getTargets(): Promise<string[]> {
+    const now = Date.now();
+
+    // Return cached targets if still valid
+    if (this.targetsCache.length > 0 && now - this.lastCacheUpdate < this.CACHE_DURATION_MS) {
+      return this.targetsCache;
+    }
+
+    // Load from database
+    const targets = await prisma.monitoringTarget.findMany({
+      where: { isEnabled: true },
+      orderBy: { priority: 'asc' },
+      select: { target: true }
+    });
+
+    this.targetsCache = targets.map(t => t.target);
+    this.lastCacheUpdate = now;
+
+    logger.debug('Monitoring targets loaded from database', {
+      count: this.targetsCache.length,
+      targets: this.targetsCache
+    });
+
+    return this.targetsCache;
+  }
+
+  /**
+   * Force refresh of targets cache
+   * Useful after settings changes
+   */
+  public async refreshTargets(): Promise<void> {
+    this.lastCacheUpdate = 0;
+    await this.getTargets();
+  }
 
   async checkConnection(): Promise<ConnectivityResult> {
     const timestamp = new Date();
+    const targets = await this.getTargets();
+
+    // Ensure we have targets to check
+    if (targets.length === 0) {
+      await logger.error('No enabled monitoring targets found', {
+        action: 'check_connection'
+      });
+
+      return {
+        isConnected: false,
+        latencyMs: null,
+        target: 'no-targets-configured',
+        timestamp
+      };
+    }
 
     // Try multiple targets for reliability
-    for (const target of this.targets) {
+    for (const target of targets) {
       try {
         const result = await this.pingTarget(target);
         if (result.isConnected) {
@@ -77,7 +117,7 @@ export class ConnectivityChecker {
 
     // Log connectivity failure
     await logger.logConnectivityCheck('all-targets', false, null, {
-      targetsAttempted: this.targets.length
+      targetsAttempted: targets.length
     });
 
     return {

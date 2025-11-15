@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "create-user": "tsx scripts/create-user.ts",
-    "seed-data": "tsx scripts/seed-data.ts"
+    "seed-data": "tsx scripts/seed-data.ts",
+    "seed-targets": "tsx scripts/seed-targets.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
