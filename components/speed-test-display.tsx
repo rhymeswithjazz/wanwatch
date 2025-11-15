@@ -2,10 +2,12 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, DataTableColumnHeader } from '@/components/ui/data-table';
-import { Activity, ArrowDown, ArrowUp, Gauge } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Activity, ArrowDown, ArrowUp, Gauge, Play, Loader2 } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import useSWR from 'swr';
+import { useToast } from '@/hooks/use-toast';
 
 interface SpeedTestData {
   id: number;
@@ -183,10 +185,14 @@ const SpeedTestHistoryTable = memo(({ history }: { history: SpeedTestData[] }) =
 SpeedTestHistoryTable.displayName = 'SpeedTestHistoryTable';
 
 export default function SpeedTestDisplay() {
+  const [isRunning, setIsRunning] = useState(false);
+  const { toast } = useToast();
+
   const {
     data: speedTestData,
     error,
     isLoading,
+    mutate,
   } = useSWR<SpeedTestResponse>('/api/speedtest', fetcher, {
     refreshInterval: 60000, // 60s polling
     revalidateOnFocus: true,
@@ -194,6 +200,43 @@ export default function SpeedTestDisplay() {
     dedupingInterval: 10000,
     onError: (err) => console.error('Speed test fetch error:', err),
   });
+
+  const runSpeedTest = async () => {
+    setIsRunning(true);
+    toast({
+      title: 'Speed test started',
+      description: 'This may take 30-60 seconds...',
+    });
+
+    try {
+      const response = await fetch('/api/speedtest/run', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Speed test failed');
+      }
+
+      const result = await response.json();
+
+      toast({
+        title: 'Speed test completed!',
+        description: `Download: ${result.result.downloadMbps.toFixed(2)} Mbps, Upload: ${result.result.uploadMbps.toFixed(2)} Mbps`,
+      });
+
+      // Refresh the data
+      mutate();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Speed test failed',
+        description: error instanceof Error ? error.message : 'Failed to run speed test',
+      });
+    } finally {
+      setIsRunning(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -231,17 +274,30 @@ export default function SpeedTestDisplay() {
 
   return (
     <div className="space-y-6">
-      <SpeedTestCards latest={latest} averages={averages} />
-
-      {latest && latest.timestamp && (
-        <Card>
-          <CardHeader>
-            <CardDescription className="text-xs text-muted-foreground">
+      <div className="flex items-center justify-between">
+        <div>
+          {latest && latest.timestamp && (
+            <p className="text-sm text-muted-foreground">
               Last tested: {new Date(latest.timestamp).toLocaleString()}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
+            </p>
+          )}
+        </div>
+        <Button onClick={runSpeedTest} disabled={isRunning} size="lg">
+          {isRunning ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Running Test...
+            </>
+          ) : (
+            <>
+              <Play className="mr-2 h-4 w-4" />
+              Run Speed Test Now
+            </>
+          )}
+        </Button>
+      </div>
+
+      <SpeedTestCards latest={latest} averages={averages} />
 
       <Card>
         <CardHeader>
