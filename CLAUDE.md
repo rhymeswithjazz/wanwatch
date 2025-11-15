@@ -62,25 +62,31 @@ npx tsx scripts/create-user.ts <email> <password> [name]
 ```
 Next.js 15 App Router (React 19 + TypeScript)
 ├── app/
-│   ├── layout.tsx              # Root layout, initializes monitoring
+│   ├── layout.tsx              # Root layout, initializes monitoring & theme
 │   ├── page.tsx                # Redirects to /dashboard
 │   ├── startup.ts              # Monitoring initialization (server-side only)
 │   ├── dashboard/page.tsx      # Protected dashboard (server component)
 │   ├── login/page.tsx          # Login page
 │   ├── logs/page.tsx           # System logs viewer page
+│   ├── settings/page.tsx       # Settings page with tabbed interface
 │   └── api/
 │       ├── auth/[...nextauth]/ # NextAuth.js endpoints
 │       ├── stats/route.ts      # Dashboard data endpoint
 │       ├── logs/route.ts       # Logs API endpoint
+│       ├── settings/theme/     # Theme preference API
 │       └── health/route.ts     # Docker healthcheck
 ├── components/
 │   ├── stats-dashboard.tsx     # Client component with charts (Recharts)
 │   ├── logs-viewer.tsx         # Client component for log viewing
+│   ├── settings-tabs.tsx       # Tabbed settings interface (Appearance/Monitoring)
+│   ├── theme-selector.tsx      # Theme variant selector with previews
+│   ├── theme-variant-initializer.tsx  # Applies saved theme on load
+│   ├── targets-manager.tsx     # Monitoring targets management
 │   ├── nav-menu.tsx            # Navigation dropdown menu component
 │   ├── header.tsx              # Clickable header (logo + title) component
 │   ├── logo.tsx                # WanWatch logo SVG component
 │   ├── theme-toggle.tsx        # Dark/light theme toggle component
-│   └── ui/                     # ShadCN UI components (button, card, input, select, etc.)
+│   └── ui/                     # ShadCN UI components (button, card, input, select, tabs, toast, etc.)
 ├── lib/
 │   ├── auth.ts                 # NextAuth v5 config (credentials provider)
 │   ├── db.ts                   # Prisma singleton client
@@ -169,12 +175,13 @@ Next.js 15 App Router (React 19 + TypeScript)
 
 ### Database Schema (Prisma + SQLite)
 
-**4 Tables**:
+**5 Tables**:
 
-1. **User**: Authentication (email/bcrypt password/name)
+1. **User**: Authentication (email/bcrypt password/name/themeVariant)
 2. **ConnectionCheck**: Every ping result (timestamp, isConnected, latencyMs, target)
 3. **Outage**: Outage records (startTime, endTime, durationSec, isResolved, checksCount, emailSent)
 4. **SystemLog**: Application logs (timestamp, level, message, metadata JSON)
+5. **MonitoringTarget**: Configurable ping targets (target, displayName, type, isEnabled, priority)
 
 **Key Pattern**: `ConnectionCheck` is append-only. Outages are updated atomically when resolved.
 
@@ -274,14 +281,43 @@ Next.js 15 App Router (React 19 + TypeScript)
 - Email failures are logged but don't crash monitoring loop
 - API endpoints return proper HTTP status codes (401, 500)
 
-### Styling
+### Styling & Theming
 
 - **ShadCN UI Component Library**: All UI components use ShadCN for consistent design
-  - Available components: Button, Card, Input, Label, Select, Table, DataTable, DropdownMenu
+  - Available components: Button, Card, Input, Label, Select, Table, DataTable, DropdownMenu, Tabs, Toast, RadioGroup
   - Theme-aware with dark/light mode support
   - Built on Tailwind CSS and Radix UI primitives
-- **Color scheme**: Blues for online status, reds for offline/errors
+- **Color scheme**: Customizable via theme variants (see below)
 - **Responsive design**: Mobile-first using Tailwind breakpoints
+
+**Theme System**:
+WanWatch supports four distinct color palettes, each with full light/dark mode support:
+
+1. **Default Blue** - Professional blue theme (original)
+   - Primary: `hsl(221.2, 83.2%, 53.3%)` (light) / `hsl(217.2, 91.2%, 59.8%)` (dark)
+   - Best for: Traditional corporate/business aesthetic
+
+2. **Network Pulse** - Cyan/teal inspired by network signals
+   - Primary: `hsl(188, 94%, 43%)` (light) / `hsl(188, 94%, 55%)` (dark)
+   - Best for: Tech-forward, modern network monitoring feel
+
+3. **Signal** - Green/amber inspired by status indicators
+   - Primary: `hsl(142, 76%, 42%)` (light) / `hsl(142, 76%, 55%)` (dark)
+   - Accent: `hsl(45, 93%, 47%)` (amber warning color)
+   - Best for: Visibility, accessibility, classic network equipment aesthetic
+
+4. **Monitor** - Purple/blue gradient for modern dashboards
+   - Primary: `hsl(262, 83%, 58%)` (light) / `hsl(262, 83%, 65%)` (dark)
+   - Best for: Distinctive, modern monitoring dashboard appearance
+
+**Theme Implementation**:
+- Theme variants defined in `app/globals.css` using CSS custom properties
+- User preference stored in `User.themeVariant` database field
+- API endpoint: `/api/settings/theme` (GET/POST)
+- `ThemeVariantInitializer` component applies saved theme on page load
+- `ThemeSelector` component in Settings → Appearance tab
+- Themes apply via `data-theme` attribute on `<html>` element
+- All themes maintain consistency with success/destructive colors across variants
 
 ### UI Navigation Pattern
 
@@ -293,11 +329,19 @@ Next.js 15 App Router (React 19 + TypeScript)
 
 **Navigation Menu** (`components/nav-menu.tsx`):
 - **Dropdown Menu**: Hamburger icon button in top-right corner
-  - System Logs link (when on Dashboard page)
-  - Dashboard link (when on Logs page)
+  - Dashboard link (when not on Dashboard)
+  - System Logs link (when not on Logs page)
+  - Settings link (when not on Settings page)
   - Sign Out button (destructive/red styling)
-- **Theme Toggle**: Standalone button next to dropdown menu
+- **Theme Toggle**: Standalone button next to dropdown menu for light/dark mode
 - **Page-Specific Titles**: Secondary h2 titles below header (e.g., "System Logs" on `/logs`)
+
+**Settings Page** (`app/settings/page.tsx`):
+- **Tabbed Interface**: Using ShadCN Tabs component
+  - **Appearance Tab**: Theme variant selector with color previews
+  - **Monitoring Tab**: Monitoring targets manager
+- Eliminates scrolling by organizing settings into logical sections
+- Icons (Palette, Target) for visual clarity on tab triggers
 
 **Component Architecture**:
 - `nav-menu.tsx` is a client component (`'use client'`) using ShadCN DropdownMenu
