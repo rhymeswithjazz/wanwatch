@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**WanWatch** is a Next.js 15 application that monitors internet connectivity by periodically pinging external targets, logs all connection checks to SQLite, detects and tracks outages, sends email notifications on recovery, and provides an authenticated dashboard for viewing statistics.
+**WanWatch** is a Next.js 15 application that monitors internet connectivity by periodically pinging external targets, runs optional internet speed tests, logs all data to SQLite, detects and tracks outages, sends email notifications on recovery, and provides an authenticated dashboard for viewing statistics and speed test history.
+
+**Key Features**:
+- Real-time connectivity monitoring with configurable targets
+- Internet speed testing via Ookla Speedtest CLI
+- Outage detection and notification system
+- Historical data tracking and visualization
+- System logs viewer with search and filtering
 
 **Key Point**: This is a single-instance monitoring application. Running multiple instances will cause duplicate monitoring and database locking issues.
 
@@ -68,17 +75,21 @@ Next.js 15 App Router (React 19 + TypeScript)
 │   ├── dashboard/page.tsx      # Protected dashboard (server component)
 │   ├── login/page.tsx          # Login page
 │   ├── logs/page.tsx           # System logs viewer page
+│   ├── speedtest/page.tsx      # Speed test page with history and manual test
 │   ├── settings/page.tsx       # Settings page with tabbed interface
 │   └── api/
 │       ├── auth/[...nextauth]/ # NextAuth.js endpoints
-│       ├── stats/route.ts      # Dashboard data endpoint
+│       ├── stats/route.ts      # Dashboard data endpoint (includes latest speed test)
 │       ├── logs/route.ts       # Logs API endpoint
+│       ├── speedtest/          # Speed test API endpoints (GET history, POST run test)
 │       ├── settings/theme/     # Theme preference API
 │       └── health/route.ts     # Docker healthcheck
 ├── components/
-│   ├── stats-dashboard.tsx     # Client component with charts (Recharts)
+│   ├── stats-dashboard.tsx     # Client component with charts (Recharts) + latest speed display
 │   ├── logs-viewer.tsx         # Client component for log viewing
-│   ├── settings-tabs.tsx       # Tabbed settings interface (Appearance/Monitoring)
+│   ├── speed-test-display.tsx  # Speed test history and manual test trigger
+│   ├── speed-test-settings.tsx # Speed test configuration instructions
+│   ├── settings-tabs.tsx       # Tabbed settings interface (Appearance/Monitoring/Speed Test)
 │   ├── theme-selector.tsx      # Theme variant selector with previews
 │   ├── theme-variant-initializer.tsx  # Applies saved theme on load
 │   ├── targets-manager.tsx     # Monitoring targets management
@@ -92,11 +103,12 @@ Next.js 15 App Router (React 19 + TypeScript)
 │   ├── db.ts                   # Prisma singleton client
 │   ├── logger.ts               # Structured logging (Pino + database)
 │   └── monitoring/
-│       ├── scheduler.ts        # setInterval-based monitoring loop
+│       ├── scheduler.ts        # setInterval-based monitoring loops (connectivity + speed test)
 │       ├── connectivity-checker.ts  # Ping logic + outage tracking
+│       ├── speed-tester.ts     # Ookla CLI execution + result storage
 │       └── email-notifier.ts   # SMTP email sending
 └── prisma/
-    ├── schema.prisma           # Database schema (4 tables)
+    ├── schema.prisma           # Database schema (5 tables: User, ConnectionCheck, Outage, SystemLog, SpeedTest)
     └── migrations/             # SQL migrations
 ```
 
@@ -127,12 +139,31 @@ Next.js 15 App Router (React 19 + TypeScript)
    - Email includes: outage duration, start/end times, link to dashboard
    - Silently fails if SMTP not configured (logs error)
 
-4. **Dashboard Polling** (`components/stats-dashboard.tsx`)
-   - Client component fetches `/api/stats` every 30 seconds
+4. **Speed Test System** (`lib/monitoring/speed-tester.ts`)
+   - **Optional feature** - enabled via `ENABLE_SPEED_TEST=true`
+   - Separate scheduler runs every `SPEED_TEST_INTERVAL_SECONDS` (default: 1800s = 30 min)
+   - Uses Ookla Speedtest CLI directly via `child_process.exec`
+   - Executes: `speedtest --accept-license --accept-gdpr --format=json`
+   - Parses JSON output to extract:
+     - Download/upload speeds (converted from bytes/sec to Mbps)
+     - Ping and jitter measurements
+     - Server location and ISP information
+   - Stores results in `SpeedTest` table
+   - Provides manual test trigger via `/api/speedtest/run` endpoint
+   - Results displayed on:
+     - Dashboard (latest speeds shown in header)
+     - Dedicated `/speedtest` page (full history with manual test button)
+   - **Docker**: Ookla CLI pre-installed in image (both ARM64 and AMD64)
+   - **Local dev**: Requires manual CLI installation (`brew install speedtest`)
+
+5. **Dashboard Polling** (`components/stats-dashboard.tsx`)
+   - Client component fetches `/api/stats` every 60 seconds
    - Stats endpoint queries:
      - Last 50,000 ConnectionCheck records (for time-series chart)
      - Last 50 Outage records (for history table)
+     - Latest SpeedTest record (for dashboard display)
      - Aggregates: total outages, total downtime, average duration
+   - Manual speed tests trigger immediate cache invalidation for instant updates
 
 ### Logging System (Pino + Database)
 
@@ -175,15 +206,19 @@ Next.js 15 App Router (React 19 + TypeScript)
 
 ### Database Schema (Prisma + SQLite)
 
-**5 Tables**:
+**6 Tables**:
 
 1. **User**: Authentication (email/bcrypt password/name/themeVariant)
 2. **ConnectionCheck**: Every ping result (timestamp, isConnected, latencyMs, target)
 3. **Outage**: Outage records (startTime, endTime, durationSec, isResolved, checksCount, emailSent)
 4. **SystemLog**: Application logs (timestamp, level, message, metadata JSON)
 5. **MonitoringTarget**: Configurable ping targets (target, displayName, type, isEnabled, priority)
+6. **SpeedTest**: Speed test results (timestamp, downloadMbps, uploadMbps, pingMs, jitterMs, serverId, serverName, serverCountry, isp, externalIp, resultUrl)
 
-**Key Pattern**: `ConnectionCheck` is append-only. Outages are updated atomically when resolved.
+**Key Patterns**:
+- `ConnectionCheck` and `SpeedTest` are append-only tables for historical data
+- Outages are updated atomically when resolved
+- Latest speed test is queried via `orderBy: { timestamp: 'desc' }` with `findFirst()`
 
 **Prisma Client**: Singleton instance in `lib/db.ts` prevents connection leaks.
 
@@ -253,6 +288,10 @@ Next.js 15 App Router (React 19 + TypeScript)
 - `CHECK_INTERVAL_SECONDS` - Ping interval (default: 300)
 - `ENABLE_MONITORING` - Set to `true` to enable monitoring in dev mode (default: false in dev)
 - `APP_URL` - Dashboard URL for email links
+
+**Optional** (Speed Testing):
+- `ENABLE_SPEED_TEST` - Enable automatic speed testing (default: false)
+- `SPEED_TEST_INTERVAL_SECONDS` - Speed test interval in seconds (default: 1800 = 30 minutes)
 
 **Optional** (Email):
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`
