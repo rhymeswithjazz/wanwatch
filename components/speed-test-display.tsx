@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Activity, ArrowDown, ArrowUp, Gauge, Play, Loader2 } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import { memo, useState } from 'react';
-import useSWR from 'swr';
+import useSWR, { mutate as globalMutate } from 'swr';
 import { useToast } from '@/hooks/use-toast';
 
 interface SpeedTestData {
@@ -225,8 +225,11 @@ export default function SpeedTestDisplay() {
         description: `Download: ${result.result.downloadMbps.toFixed(2)} Mbps, Upload: ${result.result.uploadMbps.toFixed(2)} Mbps`,
       });
 
-      // Refresh the data
+      // Refresh the speed test page data
       mutate();
+
+      // Also refresh the dashboard stats so the latest speed shows there immediately
+      globalMutate('/api/stats');
     } catch (error) {
       toast({
         variant: 'destructive',
