@@ -26,6 +26,7 @@ const envSchema = z.object({
   // App Configuration
   APP_URL: z.string().url().optional(),
   CHECK_INTERVAL_SECONDS: z.string().regex(/^\d+$/).default('300'),
+  OUTAGE_CHECK_INTERVAL_SECONDS: z.string().regex(/^\d+$/).default('30'),
   ENABLE_MONITORING: z.enum(['true', 'false']).default('false'),
   NETWORK_INFO_CACHE_SECONDS: z.string().regex(/^\d+$/).optional(),
 

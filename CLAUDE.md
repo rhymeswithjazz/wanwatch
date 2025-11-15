@@ -118,7 +118,11 @@ Next.js 15 App Router (React 19 + TypeScript)
 
 1. **Scheduler** (`lib/monitoring/scheduler.ts`)
    - Starts on application boot (server-side in layout.tsx)
-   - Runs every `CHECK_INTERVAL_SECONDS` (default 300s = 5 min)
+   - **Adaptive monitoring with two modes**:
+     - **Normal mode**: Runs every `CHECK_INTERVAL_SECONDS` (default 300s = 5 min)
+     - **Outage mode**: Switches to `OUTAGE_CHECK_INTERVAL_SECONDS` (default 30s) when disconnection detected
+   - Automatically switches between modes based on connection status
+   - Provides much more accurate outage duration tracking (within 30 seconds vs 5 minutes)
    - Calls `ConnectivityChecker.checkConnection()` on each interval
    - Uses `setInterval` - simple, no dependencies like node-cron needed for this part
 
@@ -285,7 +289,8 @@ Next.js 15 App Router (React 19 + TypeScript)
 - `NEXTAUTH_URL` - Full URL of the app (e.g., `http://localhost:3000`)
 
 **Optional** (Monitoring):
-- `CHECK_INTERVAL_SECONDS` - Ping interval (default: 300)
+- `CHECK_INTERVAL_SECONDS` - Normal mode ping interval in seconds (default: 300 = 5 minutes)
+- `OUTAGE_CHECK_INTERVAL_SECONDS` - Outage mode ping interval in seconds (default: 30 = 30 seconds)
 - `ENABLE_MONITORING` - Set to `true` to enable monitoring in dev mode (default: false in dev)
 - `APP_URL` - Dashboard URL for email links
 
@@ -465,9 +470,20 @@ private targets = [
 ];
 ```
 
-### Changing Check Interval
+### Changing Check Intervals
 
-Set `CHECK_INTERVAL_SECONDS` in `.env` (value in seconds).
+**Normal Mode Interval**:
+Set `CHECK_INTERVAL_SECONDS` in `.env` (value in seconds, default: 300).
+
+**Outage Mode Interval**:
+Set `OUTAGE_CHECK_INTERVAL_SECONDS` in `.env` (value in seconds, default: 30).
+
+**How Adaptive Monitoring Works**:
+- System starts in normal mode with regular interval (e.g., 5 minutes)
+- When outage detected: automatically switches to rapid checking (e.g., 30 seconds)
+- When connection restored: automatically switches back to normal mode
+- Logs mode transitions at INFO level for visibility
+- Provides accurate outage duration tracking without constant rapid polling
 
 ### Modifying Email Template
 
