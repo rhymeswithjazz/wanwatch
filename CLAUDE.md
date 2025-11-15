@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## General Rules
+**NextJS** Always use NextJS 15 best practices. Use ShadCN for all UI components. 
+
 ## Project Overview
 
 **WanWatch** is a Next.js 15 application that monitors internet connectivity by periodically pinging external targets, runs optional internet speed tests, logs all data to SQLite, detects and tracks outages, sends email notifications on recovery, and provides an authenticated dashboard for viewing statistics and speed test history.
