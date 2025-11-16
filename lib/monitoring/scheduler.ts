@@ -94,6 +94,16 @@ function startSpeedTestMonitoring(): void {
     return;
   }
 
+  // In development mode, skip automatic speed tests unless explicitly enabled
+  // This prevents spam during hot reloading
+  if (env.NODE_ENV === 'development' && env.ENABLE_MONITORING !== 'true') {
+    logger.info('Automatic speed tests disabled in development mode', {
+      environment: env.NODE_ENV,
+      hint: 'Set ENABLE_MONITORING=true to enable automatic speed tests in dev mode'
+    });
+    return;
+  }
+
   const speedTester = new SpeedTester();
   const speedTestIntervalSeconds = parseInt(env.SPEED_TEST_INTERVAL_SECONDS);
   const speedTestIntervalMs = speedTestIntervalSeconds * 1000;

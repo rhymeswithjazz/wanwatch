@@ -1,8 +1,6 @@
 import { signOut } from '@/lib/auth';
 import LogsViewer from '@/components/logs-viewer';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { Header } from '@/components/header';
-import { NavMenu } from '@/components/nav-menu';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -20,12 +18,8 @@ export default async function LogsPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-      <div className="flex justify-between items-center mb-6">
-        <Header />
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <NavMenu onSignOut={handleSignOut} />
-        </div>
+      <div className="mb-6">
+        <Header onSignOut={handleSignOut} />
       </div>
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-muted-foreground">
