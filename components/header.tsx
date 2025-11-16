@@ -34,8 +34,8 @@ export function Header({ onSignOut }: HeaderProps) {
           </h1>
         </Link>
 
-        {/* Desktop Navigation (md and up) */}
-        <nav className="hidden md:flex items-center gap-1">
+        {/* Desktop Navigation (lg and up) */}
+        <nav className="hidden lg:flex items-center gap-1">
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive = pathname === link.href;
@@ -69,8 +69,8 @@ export function Header({ onSignOut }: HeaderProps) {
           </div>
         </nav>
 
-        {/* Mobile Navigation (below md) */}
-        <div className="md:hidden flex items-center gap-2">
+        {/* Mobile Navigation (below lg) */}
+        <div className="lg:hidden flex items-center gap-2">
           <ThemeToggle />
           <NavMenu onSignOut={onSignOut} />
         </div>
