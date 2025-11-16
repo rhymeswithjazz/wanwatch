@@ -38,9 +38,6 @@ export default async function SpeedTestPage() {
         <h2 className="text-2xl font-semibold text-muted-foreground">
           Speed Tests
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Monitor your internet connection speed over time
-        </p>
       </div>
 
       {/* Page Content */}

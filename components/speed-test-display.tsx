@@ -3,11 +3,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, DataTableColumnHeader } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Activity, ArrowDown, ArrowUp, Gauge, Play, Loader2 } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import { memo, useState } from 'react';
 import useSWR, { mutate as globalMutate } from 'swr';
 import { useToast } from '@/hooks/use-toast';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface SpeedTestData {
   id: number;
@@ -166,6 +168,230 @@ const speedTestColumns: ColumnDef<SpeedTestData>[] = [
   },
 ];
 
+// Helper function to sample data for smoother visualization
+const sampleData = (data: SpeedTestData[]) => {
+  if (data.length <= 20) return data;
+  const step = Math.ceil(data.length / 20);
+  return data.filter((_, index) => index % step === 0);
+};
+
+// Transform history data for charts
+const prepareChartData = (history: SpeedTestData[]) => {
+  const reversedHistory = [...history].reverse();
+  const sampledHistory = sampleData(reversedHistory);
+
+  return sampledHistory.map((test) => ({
+    timestamp: new Date(test.timestamp).toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+    }),
+    download: Number(test.downloadMbps.toFixed(2)),
+    upload: Number(test.uploadMbps.toFixed(2)),
+    ping: Number(test.pingMs.toFixed(1)),
+  }));
+};
+
+// Download Only Chart
+const DownloadChart = memo(({ history }: { history: SpeedTestData[] }) => {
+  const chartData = prepareChartData(history);
+
+  return (
+    <ResponsiveContainer width="100%" height={400}>
+      <LineChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
+        <XAxis
+          dataKey="timestamp"
+          className="text-xs"
+          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+          height={40}
+        />
+        <YAxis
+          className="text-xs"
+          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+          label={{
+            value: 'Download (Mbps)',
+            angle: -90,
+            position: 'insideLeft',
+            style: { fill: 'hsl(var(--muted-foreground))' },
+          }}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: 'hsl(var(--popover))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '8px',
+          }}
+          labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+        />
+        <Line
+          type="monotone"
+          dataKey="download"
+          stroke="hsl(var(--primary))"
+          strokeWidth={3}
+          dot={false}
+          activeDot={{ r: 5 }}
+          name="Download (Mbps)"
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+});
+DownloadChart.displayName = 'DownloadChart';
+
+// Upload Only Chart
+const UploadChart = memo(({ history }: { history: SpeedTestData[] }) => {
+  const chartData = prepareChartData(history);
+
+  return (
+    <ResponsiveContainer width="100%" height={400}>
+      <LineChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
+        <XAxis
+          dataKey="timestamp"
+          className="text-xs"
+          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+          height={40}
+        />
+        <YAxis
+          className="text-xs"
+          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+          label={{
+            value: 'Upload (Mbps)',
+            angle: -90,
+            position: 'insideLeft',
+            style: { fill: 'hsl(var(--muted-foreground))' },
+          }}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: 'hsl(var(--popover))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '8px',
+          }}
+          labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+        />
+        <Line
+          type="monotone"
+          dataKey="upload"
+          stroke="hsl(var(--success))"
+          strokeWidth={3}
+          dot={false}
+          activeDot={{ r: 5 }}
+          name="Upload (Mbps)"
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+});
+UploadChart.displayName = 'UploadChart';
+
+// Combined Chart with Dual Y-Axis
+const CombinedChart = memo(({ history }: { history: SpeedTestData[] }) => {
+  const chartData = prepareChartData(history);
+
+  return (
+    <ResponsiveContainer width="100%" height={400}>
+      <LineChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
+        <XAxis
+          dataKey="timestamp"
+          className="text-xs"
+          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+          height={40}
+        />
+        <YAxis
+          yAxisId="download"
+          className="text-xs"
+          tick={{ fill: 'hsl(var(--primary))' }}
+          label={{
+            value: 'Download (Mbps)',
+            angle: -90,
+            position: 'insideLeft',
+            style: { fill: 'hsl(var(--primary))' },
+          }}
+        />
+        <YAxis
+          yAxisId="upload"
+          orientation="right"
+          className="text-xs"
+          tick={{ fill: 'hsl(var(--success))' }}
+          label={{
+            value: 'Upload (Mbps)',
+            angle: 90,
+            position: 'insideRight',
+            style: { fill: 'hsl(var(--success))' },
+          }}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: 'hsl(var(--popover))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '8px',
+          }}
+          labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+        />
+        <Legend
+          wrapperStyle={{
+            paddingTop: '20px',
+          }}
+        />
+        <Line
+          yAxisId="download"
+          type="monotone"
+          dataKey="download"
+          stroke="hsl(var(--primary))"
+          strokeWidth={3}
+          dot={false}
+          activeDot={{ r: 5 }}
+          name="Download"
+        />
+        <Line
+          yAxisId="upload"
+          type="monotone"
+          dataKey="upload"
+          stroke="hsl(var(--success))"
+          strokeWidth={3}
+          dot={false}
+          activeDot={{ r: 5 }}
+          name="Upload"
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+});
+CombinedChart.displayName = 'CombinedChart';
+
+// Speed Test Chart Component with Tabs
+const SpeedTestChart = memo(({ history }: { history: SpeedTestData[] }) => {
+  if (history.length === 0) {
+    return (
+      <div className="text-center py-10 text-muted-foreground">
+        No speed test data available for chart
+      </div>
+    );
+  }
+
+  return (
+    <Tabs defaultValue="download" className="w-full">
+      <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
+        <TabsTrigger value="download">Download</TabsTrigger>
+        <TabsTrigger value="upload">Upload</TabsTrigger>
+        <TabsTrigger value="combined">Combined</TabsTrigger>
+      </TabsList>
+      <TabsContent value="download" className="mt-6">
+        <DownloadChart history={history} />
+      </TabsContent>
+      <TabsContent value="upload" className="mt-6">
+        <UploadChart history={history} />
+      </TabsContent>
+      <TabsContent value="combined" className="mt-6">
+        <CombinedChart history={history} />
+      </TabsContent>
+    </Tabs>
+  );
+});
+SpeedTestChart.displayName = 'SpeedTestChart';
+
 const SpeedTestHistoryTable = memo(({ history }: { history: SpeedTestData[] }) => {
   if (history.length === 0) {
     return (
@@ -284,15 +510,15 @@ export default function SpeedTestDisplay() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-end">
+        {/* <div>
           {latest && latest.timestamp && (
             <p className="text-sm text-muted-foreground">
               Last tested: {new Date(latest.timestamp).toLocaleString()}
             </p>
           )}
-        </div>
-        <Button onClick={runSpeedTest} disabled={isRunning} size="lg">
+        </div> */}
+        <Button onClick={runSpeedTest} disabled={isRunning} size="sm">
           {isRunning ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -308,6 +534,16 @@ export default function SpeedTestDisplay() {
       </div>
 
       <SpeedTestCards latest={latest} averages={averages} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Speed Trends</CardTitle>
+          <CardDescription>Download and upload speeds over time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SpeedTestChart history={history} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
