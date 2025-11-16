@@ -4,6 +4,7 @@ import { getErrorMessage } from '@/lib/utils';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { getMonitoringIntervals } from '@/lib/settings';
+import { prisma } from '@/lib/db';
 
 // Timing constants
 const SPEED_TEST_STARTUP_DELAY_MS = 30000; // 30 seconds - allow connectivity check to complete first
@@ -84,11 +85,11 @@ export async function startMonitoring(): Promise<void> {
 
   // Start speed test monitoring if enabled
   if (env.ENABLE_SPEED_TEST === 'true') {
-    startSpeedTestMonitoring();
+    await startSpeedTestMonitoring();
   }
 }
 
-function startSpeedTestMonitoring(): void {
+async function startSpeedTestMonitoring(): Promise<void> {
   if (speedTestTask) {
     logger.debug('Speed test monitoring already running');
     return;
@@ -121,16 +122,54 @@ function startSpeedTestMonitoring(): void {
     }
   };
 
-  // Run speed test after delay to allow connectivity check to complete first
+  // Check when the last speed test was run
+  const lastTest = await prisma.speedTest.findFirst({
+    orderBy: { timestamp: 'desc' },
+    select: { timestamp: true }
+  });
+
+  const now = Date.now();
+  let initialDelay: number;
+
+  if (lastTest) {
+    const timeSinceLastTest = now - lastTest.timestamp.getTime();
+    const timeUntilNextTest = speedTestIntervalMs - timeSinceLastTest;
+
+    if (timeUntilNextTest <= 0) {
+      // Last test was more than interval ago, run soon (after connectivity check delay)
+      initialDelay = SPEED_TEST_STARTUP_DELAY_MS;
+      logger.info('Last speed test exceeded interval, scheduling startup test', {
+        timeSinceLastTestSeconds: Math.floor(timeSinceLastTest / 1000),
+        intervalSeconds: speedTestIntervalSeconds,
+        startupDelaySeconds: SPEED_TEST_STARTUP_DELAY_MS / 1000
+      });
+    } else {
+      // Last test was recent, wait until the next scheduled time
+      initialDelay = timeUntilNextTest;
+      logger.info('Recent speed test found, scheduling next test', {
+        timeSinceLastTestSeconds: Math.floor(timeSinceLastTest / 1000),
+        nextTestInSeconds: Math.floor(timeUntilNextTest / 1000)
+      });
+    }
+  } else {
+    // No previous test, run on startup
+    initialDelay = SPEED_TEST_STARTUP_DELAY_MS;
+    logger.info('No previous speed test found, scheduling startup test', {
+      startupDelaySeconds: SPEED_TEST_STARTUP_DELAY_MS / 1000
+    });
+  }
+
+  // Run first speed test after calculated delay
   setTimeout(() => {
     runSpeedTest();
-  }, SPEED_TEST_STARTUP_DELAY_MS);
+  }, initialDelay);
 
   // Then run every N seconds
   speedTestTask = setInterval(runSpeedTest, speedTestIntervalMs);
 
   logger.logLifecycle('speedtest_monitoring_started', {
-    intervalSeconds: speedTestIntervalSeconds
+    intervalSeconds: speedTestIntervalSeconds,
+    initialDelaySeconds: Math.floor(initialDelay / 1000)
   });
 }
 
