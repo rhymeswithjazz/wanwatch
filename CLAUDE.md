@@ -124,7 +124,7 @@ Next.js 15 App Router (React 19 + TypeScript)
 ├── components/
 │   ├── stats-dashboard.tsx     # Client component with charts (Recharts) + latest speed display
 │   ├── logs-viewer.tsx         # Client component for log viewing
-│   ├── speed-test-display.tsx  # Speed test history and manual test trigger
+│   ├── speed-test-display.tsx  # Speed test page with tabbed charts, stats cards, history table, manual trigger
 │   ├── speed-test-settings.tsx # Speed test configuration instructions
 │   ├── settings-tabs.tsx       # Tabbed settings interface (Appearance/Monitoring/Speed Test)
 │   ├── monitoring-intervals.tsx # Monitoring intervals configuration UI
@@ -194,7 +194,15 @@ Next.js 15 App Router (React 19 + TypeScript)
    - Provides manual test trigger via `/api/speedtest/run` endpoint
    - Results displayed on:
      - Dashboard (latest speeds shown in header)
-     - Dedicated `/speedtest` page (full history with manual test button)
+     - Dedicated `/speedtest` page with:
+       - Stats cards showing latest and average speeds
+       - **Tabbed chart visualization** (Recharts):
+         - **Download tab**: Single-axis graph optimized for download speeds
+         - **Upload tab**: Single-axis graph optimized for upload speeds
+         - **Combined tab**: Dual Y-axis graph showing both speeds with independent scales
+       - Data sampling (max 20 points) for smooth trend visualization
+       - Full history table with search and sorting
+       - Manual test button with real-time progress
    - **Docker**: Ookla CLI pre-installed in image (both ARM64 and AMD64)
    - **Local dev**: Requires manual CLI installation (`brew install speedtest`)
 
