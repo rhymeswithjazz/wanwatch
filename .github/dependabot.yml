@@ -10,7 +10,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "09:00"
+      time: "03:00"
       timezone: "UTC"
     # Group all minor and patch updates together to reduce PR noise
     groups:
@@ -41,8 +41,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "tuesday"
-      time: "09:00"
+      day: "wednesday"
+      time: "04:00"
       timezone: "UTC"
     # Ignore Node.js major version updates (stay on v20 LTS)
     ignore:
@@ -61,8 +61,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "wednesday"
-      time: "09:00"
+      day: "friday"
+      time: "05:00"
       timezone: "UTC"
     groups:
       github-actions:
