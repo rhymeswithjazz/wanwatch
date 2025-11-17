@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 
-type ThemeVariant = 'default' | 'network-pulse' | 'signal' | 'monitor';
+type ThemeVariant = 'default' | 'network-pulse' | 'signal' | 'monitor' | 'dracula';
 
 interface ThemeOption {
   value: ThemeVariant;
@@ -58,6 +58,16 @@ const THEME_OPTIONS: ThemeOption[] = [
       primary: 'hsl(262, 83%, 58%)',
       secondary: 'hsl(260, 20%, 94%)',
       accent: 'hsl(142, 76%, 42%)',
+    },
+  },
+  {
+    value: 'dracula',
+    label: 'Dracula',
+    description: 'Dark purple and pink theme inspired by the Dracula color scheme',
+    previewColors: {
+      primary: 'hsl(265, 89%, 78%)',
+      secondary: 'hsl(232, 14%, 31%)',
+      accent: 'hsl(326, 100%, 74%)',
     },
   },
 ];

@@ -15,7 +15,7 @@ model User {
   email         String   @unique
   password      String
   name          String?
-  themeVariant  String?  @default("default") // 'default' | 'network-pulse' | 'signal' | 'monitor'
+  themeVariant  String?  @default("default") // 'default' | 'network-pulse' | 'signal' | 'monitor' | 'dracula'
   createdAt     DateTime @default(now())
 }
 

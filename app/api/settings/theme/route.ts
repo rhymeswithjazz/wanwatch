@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
-const VALID_THEMES = ['default', 'network-pulse', 'signal', 'monitor'];
+const VALID_THEMES = ['default', 'network-pulse', 'signal', 'monitor', 'dracula'];
 
 export async function GET() {
   try {
