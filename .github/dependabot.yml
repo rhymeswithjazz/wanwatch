@@ -36,6 +36,7 @@ updates:
     rebase-strategy: "auto"
 
   # Docker base image (node:20-alpine)
+  # Only allow patch updates - major Node.js upgrades require compatibility testing
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -43,6 +44,10 @@ updates:
       day: "tuesday"
       time: "09:00"
       timezone: "UTC"
+    # Ignore Node.js major version updates (stay on v20 LTS)
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
