@@ -48,7 +48,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
-    "@types/bcryptjs": "^2.4.6",
+    "@types/bcryptjs": "^3.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.19.24",
     "@types/node-cron": "^3.0.11",
