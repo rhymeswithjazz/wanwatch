@@ -383,7 +383,7 @@ Next.js 15 App Router (React 19 + TypeScript)
 - **Responsive design**: Mobile-first using Tailwind breakpoints
 
 **Theme System**:
-WanWatch supports four distinct color palettes, each with full light/dark mode support:
+WanWatch supports five distinct color palettes, each with full light/dark mode support:
 
 1. **Default Blue** - Professional blue theme (original)
    - Primary: `hsl(221.2, 83.2%, 53.3%)` (light) / `hsl(217.2, 91.2%, 59.8%)` (dark)
@@ -401,6 +401,12 @@ WanWatch supports four distinct color palettes, each with full light/dark mode s
 4. **Monitor** - Purple/blue gradient for modern dashboards
    - Primary: `hsl(262, 83%, 58%)` (light) / `hsl(262, 83%, 65%)` (dark)
    - Best for: Distinctive, modern monitoring dashboard appearance
+
+5. **Dracula** - Purple and pink inspired by the Dracula color scheme
+   - Primary: `hsl(265, 89%, 68%)` (light) / `hsl(265, 89%, 78%)` (dark)
+   - Accent: `hsl(326, 100%, 74%)` (pink)
+   - Background: `hsl(231, 15%, 18%)` (dark mode - classic Dracula background)
+   - Best for: Users who prefer the popular Dracula theme aesthetic
 
 **Theme Implementation**:
 - Theme variants defined in `app/globals.css` using CSS custom properties
