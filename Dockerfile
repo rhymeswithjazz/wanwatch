@@ -60,10 +60,12 @@ RUN if ! getent group ${PGID} >/dev/null 2>&1; then \
     GROUP_NAME=$(getent group ${PGID} | cut -d: -f1) && \
     adduser --system --uid ${PUID} --ingroup ${GROUP_NAME} nextjs
 
-# Copy Prisma files
+# Copy Prisma files and dependencies
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Copy effect module - required by @prisma/config (see prisma/prisma#26498)
+COPY --from=builder /app/node_modules/effect ./node_modules/effect
 
 # Install Prisma CLI globally with pinned version for runtime migrations
 # This avoids npx potentially fetching incompatible versions
