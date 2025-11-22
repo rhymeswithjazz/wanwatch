@@ -64,6 +64,8 @@ RUN if ! getent group ${PGID} >/dev/null 2>&1; then \
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Copy prisma CLI to avoid npx downloading latest version (which may have breaking changes)
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 # Copy scripts for admin tasks (user creation, etc.)
 COPY --from=builder /app/scripts ./scripts
