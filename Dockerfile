@@ -64,6 +64,8 @@ RUN if ! getent group ${PGID} >/dev/null 2>&1; then \
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Copy effect module - required by @prisma/config (workaround for prisma/prisma#26498)
+COPY --from=builder /app/node_modules/effect ./node_modules/effect
 
 # Install Prisma CLI globally with pinned version to avoid Prisma 7 breaking changes
 RUN npm install -g prisma@6.19.0
