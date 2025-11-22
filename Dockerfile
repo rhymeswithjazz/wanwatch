@@ -15,8 +15,8 @@ COPY . .
 # Set dummy DATABASE_URL for build (actual URL set at runtime)
 ENV DATABASE_URL="file:./dev.db"
 
-# Generate Prisma Client
-RUN npx prisma generate
+# Generate Prisma Client using locally installed version (not npx which may fetch latest)
+RUN ./node_modules/.bin/prisma generate
 
 # Build Next.js
 RUN npm run build
@@ -64,6 +64,10 @@ RUN if ! getent group ${PGID} >/dev/null 2>&1; then \
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# Install Prisma CLI globally with pinned version for runtime migrations
+# This avoids npx potentially fetching incompatible versions
+RUN npm install -g prisma@6.19.0
 
 # Copy scripts for admin tasks (user creation, etc.)
 COPY --from=builder /app/scripts ./scripts
