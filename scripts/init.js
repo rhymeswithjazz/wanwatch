@@ -9,7 +9,8 @@ async function init() {
     // Run migrations first
     console.log('Running database migrations...');
     const { execSync } = require('child_process');
-    execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+    // Use node to run prisma directly instead of npx to avoid downloading latest version
+    execSync('node node_modules/prisma/build/index.js migrate deploy', { stdio: 'inherit' });
 
     // Check if we need to create initial admin user
     const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
