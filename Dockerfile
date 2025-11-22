@@ -66,11 +66,10 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 # Copy effect module - required by @prisma/config (workaround for prisma/prisma#26498)
 COPY --from=builder /app/node_modules/effect ./node_modules/effect
+# Copy bcryptjs - required by init.js and marked as external in next.config.js
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
 # Install Prisma CLI globally with pinned version to avoid Prisma 7 breaking changes
-RUN npm install -g prisma@6.19.0
-
-# Install Prisma CLI globally with pinned version for runtime migrations
 # This avoids npx potentially fetching incompatible versions
 RUN npm install -g prisma@6.19.0
 
@@ -79,8 +78,6 @@ COPY --from=builder /app/scripts ./scripts
 
 # Copy Next.js built files
 # Use numeric IDs for chown to work with any group name
-ARG PUID=1001
-ARG PGID=1001
 COPY --from=builder --chown=${PUID}:${PGID} /app/.next/standalone ./
 COPY --from=builder --chown=${PUID}:${PGID} /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
