@@ -60,12 +60,13 @@ RUN if ! getent group ${PGID} >/dev/null 2>&1; then \
     GROUP_NAME=$(getent group ${PGID} | cut -d: -f1) && \
     adduser --system --uid ${PUID} --ingroup ${GROUP_NAME} nextjs
 
-# Copy Prisma files
+# Copy Prisma schema and generated client
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-# Copy prisma CLI to avoid npx downloading latest version (which may have breaking changes)
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+
+# Install Prisma CLI globally with pinned version to avoid Prisma 7 breaking changes
+RUN npm install -g prisma@6.19.0
 
 # Copy scripts for admin tasks (user creation, etc.)
 COPY --from=builder /app/scripts ./scripts
