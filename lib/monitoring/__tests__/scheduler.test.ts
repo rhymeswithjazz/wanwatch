@@ -141,9 +141,10 @@ describe('scheduler', () => {
 
       await startMonitoring();
 
-      expect(logger.logLifecycle).toHaveBeenCalledWith('speedtest_monitoring_started', {
-        intervalSeconds: 1800,
-      });
+      expect(logger.logLifecycle).toHaveBeenCalledWith(
+        'speedtest_monitoring_started',
+        expect.objectContaining({ intervalSeconds: 1800 })
+      );
 
       (env as any).ENABLE_SPEED_TEST = 'false';
     });
@@ -170,9 +171,10 @@ describe('scheduler', () => {
 
       await startMonitoring();
 
-      expect(logger.logLifecycle).toHaveBeenCalledWith('speedtest_monitoring_started', {
-        intervalSeconds: 3600,
-      });
+      expect(logger.logLifecycle).toHaveBeenCalledWith(
+        'speedtest_monitoring_started',
+        expect.objectContaining({ intervalSeconds: 3600 })
+      );
 
       (env as any).ENABLE_SPEED_TEST = 'false';
       (env as any).SPEED_TEST_INTERVAL_SECONDS = '1800';
