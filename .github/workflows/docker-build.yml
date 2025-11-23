@@ -5,9 +5,15 @@ on:
     branches:
       - main
 
+# Prevent multiple concurrent builds on the same branch
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -35,6 +41,7 @@ jobs:
             type=sha,prefix=sha-,format=short
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -47,6 +54,12 @@ jobs:
             PGID=100
           cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/wanwatch:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/wanwatch:buildcache,mode=max
+          # Add provenance for supply chain security
+          provenance: true
+          sbom: true
 
       - name: Image digest
-        run: echo "Image pushed with digest ${{ steps.build.outputs.digest }}"
+        run: |
+          echo "✅ Docker image built and pushed successfully"
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
+          echo "Tags: ${{ steps.meta.outputs.tags }}"
