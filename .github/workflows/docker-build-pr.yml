@@ -38,7 +38,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          # Build only for amd64 in PR validation - faster and allows image size check
+          # Multi-platform builds (amd64+arm64) are done in the main docker-build workflow
+          platforms: linux/amd64
           push: false
           tags: wanwatch:pr-test
           build-args: |
@@ -46,7 +48,6 @@ jobs:
             PGID=100
           cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/wanwatch:buildcache
           cache-to: type=gha
-          # Fail if build takes too long (indicates potential issues)
           load: true
 
       - name: Check image size
