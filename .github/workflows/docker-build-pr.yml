@@ -1,0 +1,62 @@
+name: Docker Build Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'package*.json'
+      - 'prisma/**'
+      - 'next.config.js'
+      - 'tsconfig.json'
+      - 'app/**'
+      - 'components/**'
+      - 'lib/**'
+      - 'scripts/**'
+
+concurrency:
+  group: docker-build-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-docker-build:
+    name: Validate Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: wanwatch:pr-test
+          build-args: |
+            PUID=1026
+            PGID=100
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/wanwatch:buildcache
+          cache-to: type=gha
+          # Fail if build takes too long (indicates potential issues)
+          load: true
+
+      - name: Check image size
+        run: |
+          docker images wanwatch:pr-test --format "{{.Size}}"
+          SIZE_STR=$(docker images wanwatch:pr-test --format "{{.Size}}" | head -1)
+          echo "Image size: ${SIZE_STR}"
+          # Extract numeric value (handles MB/GB suffixes)
+          SIZE_MB=$(echo "$SIZE_STR" | sed 's/[^0-9.]//g')
+          if [ -n "$SIZE_MB" ] && [ "$(echo "$SIZE_MB > 500" | awk '{print ($1 > $2)}')" = "1" ]; then
+            echo "::warning::Docker image is larger than 500MB (${SIZE_MB}MB)"
+          fi
+
