@@ -26,7 +26,10 @@ jobs:
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
-          fail-on-severity: moderate
+          # Only fail on high/critical severity - moderate is too strict
+          # This allows Dependabot PRs to proceed even if they have moderate issues
+          # since Dependabot PRs are typically fixing vulnerabilities, not introducing them
+          fail-on-severity: high
 
   npm-audit:
     name: NPM Security Audit

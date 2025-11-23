@@ -43,6 +43,7 @@ prisma/*.db-journal
 # IDEs
 .vscode
 .idea
+.cursor
 
 /app/generated/prisma
 *.tar.gz
