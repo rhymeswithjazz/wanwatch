@@ -181,29 +181,59 @@ const prepareChartData = (history: SpeedTestData[]) => {
   const sampledHistory = sampleData(reversedHistory);
 
   return sampledHistory.map((test) => ({
-    timestamp: new Date(test.timestamp).toLocaleDateString([], {
-      month: 'short',
-      day: 'numeric',
-    }),
+    // Store as timestamp number for proper axis handling
+    time: new Date(test.timestamp).getTime(),
     download: Number(test.downloadMbps.toFixed(2)),
     upload: Number(test.uploadMbps.toFixed(2)),
     ping: Number(test.pingMs.toFixed(1)),
   }));
 };
 
+// Format X-axis tick based on data range
+const formatXAxisTick = (timestamp: number, dataRange: number) => {
+  const date = new Date(timestamp);
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  if (dataRange <= oneDayMs) {
+    // Less than a day: show time only
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else if (dataRange <= 7 * oneDayMs) {
+    // Less than a week: show day and time
+    return date.toLocaleDateString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  } else {
+    // More than a week: show date
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+};
+
+// Calculate the time range of the data
+const getDataRange = (chartData: { time: number }[]) => {
+  if (chartData.length < 2) return 0;
+  const first = chartData[0];
+  const last = chartData[chartData.length - 1];
+  if (!first || !last) return 0;
+  return last.time - first.time;
+};
+
 // Download Only Chart
 const DownloadChart = memo(({ history }: { history: SpeedTestData[] }) => {
   const chartData = prepareChartData(history);
+  const dataRange = getDataRange(chartData);
 
   return (
     <ResponsiveContainer width="100%" height={400}>
       <LineChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
         <XAxis
-          dataKey="timestamp"
+          dataKey="time"
+          type="number"
+          domain={['dataMin', 'dataMax']}
+          scale="time"
+          tickFormatter={(ts) => formatXAxisTick(ts, dataRange)}
           className="text-xs"
           tick={{ fill: 'hsl(var(--muted-foreground))' }}
           height={40}
+          minTickGap={50}
         />
         <YAxis
           className="text-xs"
@@ -222,6 +252,7 @@ const DownloadChart = memo(({ history }: { history: SpeedTestData[] }) => {
             borderRadius: '8px',
           }}
           labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+          labelFormatter={(ts) => new Date(ts).toLocaleString()}
         />
         <Line
           type="monotone"
@@ -241,16 +272,22 @@ DownloadChart.displayName = 'DownloadChart';
 // Upload Only Chart
 const UploadChart = memo(({ history }: { history: SpeedTestData[] }) => {
   const chartData = prepareChartData(history);
+  const dataRange = getDataRange(chartData);
 
   return (
     <ResponsiveContainer width="100%" height={400}>
       <LineChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
         <XAxis
-          dataKey="timestamp"
+          dataKey="time"
+          type="number"
+          domain={['dataMin', 'dataMax']}
+          scale="time"
+          tickFormatter={(ts) => formatXAxisTick(ts, dataRange)}
           className="text-xs"
           tick={{ fill: 'hsl(var(--muted-foreground))' }}
           height={40}
+          minTickGap={50}
         />
         <YAxis
           className="text-xs"
@@ -269,6 +306,7 @@ const UploadChart = memo(({ history }: { history: SpeedTestData[] }) => {
             borderRadius: '8px',
           }}
           labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+          labelFormatter={(ts) => new Date(ts).toLocaleString()}
         />
         <Line
           type="monotone"
@@ -288,16 +326,22 @@ UploadChart.displayName = 'UploadChart';
 // Combined Chart with Dual Y-Axis
 const CombinedChart = memo(({ history }: { history: SpeedTestData[] }) => {
   const chartData = prepareChartData(history);
+  const dataRange = getDataRange(chartData);
 
   return (
     <ResponsiveContainer width="100%" height={400}>
       <LineChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
         <XAxis
-          dataKey="timestamp"
+          dataKey="time"
+          type="number"
+          domain={['dataMin', 'dataMax']}
+          scale="time"
+          tickFormatter={(ts) => formatXAxisTick(ts, dataRange)}
           className="text-xs"
           tick={{ fill: 'hsl(var(--muted-foreground))' }}
           height={40}
+          minTickGap={50}
         />
         <YAxis
           yAxisId="download"
@@ -329,6 +373,7 @@ const CombinedChart = memo(({ history }: { history: SpeedTestData[] }) => {
             borderRadius: '8px',
           }}
           labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+          labelFormatter={(ts) => new Date(ts).toLocaleString()}
         />
         <Legend
           wrapperStyle={{
