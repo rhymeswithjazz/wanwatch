@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { getErrorMessage } from '@/lib/utils';
 import { z } from 'zod';
+import { isValidIPv4 } from '@/lib/utils/shell';
 
 const TargetSchema = z.object({
   target: z.string().min(1, 'Target is required'),
@@ -53,6 +54,27 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = TargetSchema.parse(body);
+
+    // Validate target format
+    const target = validatedData.target;
+    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    const looksLikeMalformedIP = /^[\d.]+$/.test(target) && !isValidIPv4(target);
+    const isValidIP = isValidIPv4(target);
+    const isValidDomain = !isValidIP && !looksLikeMalformedIP && domainRegex.test(target);
+
+    if (looksLikeMalformedIP) {
+      return NextResponse.json(
+        { error: 'Invalid IP address format. Must have exactly 4 octets (0-255) separated by dots.' },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidIP && !isValidDomain) {
+      return NextResponse.json(
+        { error: 'Invalid target format. Must be a valid IP address or domain name.' },
+        { status: 400 }
+      );
+    }
 
     // Check for duplicate target
     const existing = await prisma.monitoringTarget.findUnique({
@@ -113,6 +135,29 @@ export async function PUT(request: NextRequest) {
     }
 
     const validatedUpdates = UpdateTargetSchema.parse(updates);
+
+    // Validate target format if being updated
+    if (validatedUpdates.target) {
+      const target = validatedUpdates.target;
+      const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+      const looksLikeMalformedIP = /^[\d.]+$/.test(target) && !isValidIPv4(target);
+      const isValidIP = isValidIPv4(target);
+      const isValidDomain = !isValidIP && !looksLikeMalformedIP && domainRegex.test(target);
+
+      if (looksLikeMalformedIP) {
+        return NextResponse.json(
+          { error: 'Invalid IP address format. Must have exactly 4 octets (0-255) separated by dots.' },
+          { status: 400 }
+        );
+      }
+
+      if (!isValidIP && !isValidDomain) {
+        return NextResponse.json(
+          { error: 'Invalid target format. Must be a valid IP address or domain name.' },
+          { status: 400 }
+        );
+      }
+    }
 
     // Get existing target for logging
     const existingTarget = await prisma.monitoringTarget.findUnique({

@@ -1,10 +1,7 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { prisma } from '@/lib/db';
 import { getErrorMessage } from '@/lib/utils';
 import { logger } from '@/lib/logger';
-
-const execAsync = promisify(exec);
+import { safePing } from '@/lib/utils/shell';
 
 export interface ConnectivityResult {
   isConnected: boolean;
@@ -130,7 +127,7 @@ export class ConnectivityChecker {
 
   private async pingTarget(target: string): Promise<{ isConnected: boolean; latencyMs: number | null }> {
     try {
-      const { stdout } = await execAsync(`ping -c 1 -W 5 ${target}`);
+      const { stdout } = await safePing(target);
 
       // Parse latency from ping output
       const match = stdout.match(/time=(\d+\.?\d*)/);
@@ -140,7 +137,7 @@ export class ConnectivityChecker {
         isConnected: true,
         latencyMs
       };
-    } catch (error) {
+    } catch {
       return {
         isConnected: false,
         latencyMs: null

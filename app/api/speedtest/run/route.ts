@@ -6,6 +6,26 @@ import { logger } from '@/lib/logger';
 // In-memory rate limiter - tracks last test time per user
 const lastTestTime = new Map<string, number>();
 const COOLDOWN_MS = 60000; // 1 minute cooldown between manual tests
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // Clean up every hour
+const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // Remove entries older than 24 hours
+
+// Periodic cleanup to prevent memory leak from growing Map
+// Only runs in Node.js environment (not during build)
+if (typeof setInterval !== 'undefined' && typeof process !== 'undefined') {
+  const cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [user, time] of lastTestTime) {
+      if (now - time > STALE_THRESHOLD_MS) {
+        lastTestTime.delete(user);
+      }
+    }
+  }, CLEANUP_INTERVAL_MS);
+
+  // Don't prevent process from exiting
+  if (cleanupInterval.unref) {
+    cleanupInterval.unref();
+  }
+}
 
 export async function POST() {
   const startTime = Date.now();
