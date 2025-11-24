@@ -13,30 +13,62 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/$1',
   },
   collectCoverageFrom: [
-    'lib/**/*.{ts,tsx}',
-    'components/**/*.{ts,tsx}',
-    'app/**/*.{ts,tsx}',
+    // Core business logic - INCLUDE
+    'lib/monitoring/**/*.ts',
+    'lib/logger.ts',
+    'lib/settings.ts',
+
+    // API routes with tests - INCLUDE
+    'app/api/stats/route.ts',
+
+    // Exclude from coverage
     '!**/*.d.ts',
-    '!**/node_modules/**',
-    '!**/.next/**',
-    '!**/coverage/**',
-    '!app/layout.tsx', // Skip layout (hard to test)
-    '!app/startup.ts', // Skip startup (integration test)
+    '!**/*.test.ts',
   ],
   coverageThreshold: {
-    // Apply thresholds only to critical monitoring code that has tests
-    // Global thresholds removed - unrealistic for Next.js app with React components
+    // Per-file thresholds for tested modules
     'lib/monitoring/connectivity-checker.ts': {
       statements: 100,
       branches: 100,
       functions: 100,
       lines: 100,
     },
+    'lib/monitoring/email-notifier.ts': {
+      statements: 100,
+      branches: 90,
+      functions: 100,
+      lines: 100,
+    },
+    'lib/monitoring/speed-tester.ts': {
+      statements: 100,
+      branches: 90,
+      functions: 100,
+      lines: 100,
+    },
+    'lib/logger.ts': {
+      statements: 95,
+      branches: 85,
+      functions: 100,
+      lines: 95,
+    },
+    'lib/settings.ts': {
+      statements: 100,
+      branches: 90,
+      functions: 100,
+      lines: 100,
+    },
     'lib/monitoring/scheduler.ts': {
-      statements: 70,
-      branches: 50,
+      statements: 75,
+      branches: 55,
       functions: 70,
-      lines: 70,
+      lines: 75,
+    },
+    // Global threshold for everything else
+    global: {
+      statements: 90,
+      branches: 80,
+      functions: 85,
+      lines: 90,
     },
   },
   testMatch: [
