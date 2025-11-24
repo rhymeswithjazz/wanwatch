@@ -45,26 +45,20 @@ jest.mock('@/lib/logger', () => ({
   },
 }));
 
-// Mock child_process exec and util.promisify
-// Create the mock function inside the factory to avoid hoisting issues
-jest.mock('child_process');
-jest.mock('util', () => {
-  const mockFn = jest.fn();
-  const original = jest.requireActual('util');
-  return {
-    ...original,
-    promisify: jest.fn(() => mockFn),
-    __mockExecAsync: mockFn, // Export so we can access it
-  };
-});
+// Mock the safePing utility
+jest.mock('@/lib/utils/shell', () => ({
+  safePing: jest.fn(),
+  isSafeTarget: jest.fn().mockReturnValue(true),
+  isValidIPv4: jest.fn().mockReturnValue(true),
+}));
 
 // Import mocked modules
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import * as util from 'util';
+import { safePing } from '@/lib/utils/shell';
 
-// Access the mock function we created
-const mockExecAsync = (util as any).__mockExecAsync;
+// Get the mock function
+const mockSafePing = safePing as jest.MockedFunction<typeof safePing>;
 
 describe('ConnectivityChecker', () => {
   let checker: ConnectivityChecker;
@@ -182,9 +176,8 @@ describe('ConnectivityChecker', () => {
     describe('when first target succeeds', () => {
       beforeEach(() => {
         // Mock successful ping
-        mockExecAsync.mockResolvedValue({
+        mockSafePing.mockResolvedValue({
           stdout: 'PING 8.8.8.8: 64 bytes from 8.8.8.8: icmp_seq=0 ttl=117 time=15.2 ms',
-          stderr: '',
         });
       });
 
@@ -224,19 +217,18 @@ describe('ConnectivityChecker', () => {
         await checker.checkConnection();
 
         // Only one ping command for first target
-        expect(mockExecAsync).toHaveBeenCalledTimes(1);
-        expect(mockExecAsync).toHaveBeenCalledWith('ping -c 1 -W 5 8.8.8.8');
+        expect(mockSafePing).toHaveBeenCalledTimes(1);
+        expect(mockSafePing).toHaveBeenCalledWith('8.8.8.8');
       });
     });
 
     describe('when first target fails but second succeeds', () => {
       beforeEach(() => {
         // First call fails, second call succeeds
-        mockExecAsync
+        mockSafePing
           .mockRejectedValueOnce(new Error('Host unreachable'))
           .mockResolvedValueOnce({
             stdout: 'PING 1.1.1.1: 64 bytes from 1.1.1.1: time=20.5 ms',
-            stderr: '',
           });
       });
 
@@ -257,15 +249,15 @@ describe('ConnectivityChecker', () => {
       it('should try targets in order until one succeeds', async () => {
         await checker.checkConnection();
 
-        expect(mockExecAsync).toHaveBeenCalledTimes(2);
-        expect(mockExecAsync).toHaveBeenNthCalledWith(1, 'ping -c 1 -W 5 8.8.8.8');
-        expect(mockExecAsync).toHaveBeenNthCalledWith(2, 'ping -c 1 -W 5 1.1.1.1');
+        expect(mockSafePing).toHaveBeenCalledTimes(2);
+        expect(mockSafePing).toHaveBeenNthCalledWith(1, '8.8.8.8');
+        expect(mockSafePing).toHaveBeenNthCalledWith(2, '1.1.1.1');
       });
     });
 
     describe('when all targets fail', () => {
       beforeEach(() => {
-        mockExecAsync.mockRejectedValue(new Error('Network unreachable'));
+        mockSafePing.mockRejectedValue(new Error('Network unreachable'));
       });
 
       it('should return disconnected status', async () => {
@@ -302,15 +294,14 @@ describe('ConnectivityChecker', () => {
       it('should try all configured targets', async () => {
         await checker.checkConnection();
 
-        expect(mockExecAsync).toHaveBeenCalledTimes(3);
+        expect(mockSafePing).toHaveBeenCalledTimes(3);
       });
     });
 
     describe('latency parsing', () => {
       it('should parse latency with decimal', async () => {
-        mockExecAsync.mockResolvedValue({
+        mockSafePing.mockResolvedValue({
           stdout: 'time=42.7 ms',
-          stderr: '',
         });
 
         const result = await checker.checkConnection();
@@ -318,9 +309,8 @@ describe('ConnectivityChecker', () => {
       });
 
       it('should parse latency without decimal', async () => {
-        mockExecAsync.mockResolvedValue({
+        mockSafePing.mockResolvedValue({
           stdout: 'time=15 ms',
-          stderr: '',
         });
 
         const result = await checker.checkConnection();
@@ -328,9 +318,8 @@ describe('ConnectivityChecker', () => {
       });
 
       it('should handle missing latency in output', async () => {
-        mockExecAsync.mockResolvedValue({
+        mockSafePing.mockResolvedValue({
           stdout: 'PING successful but no time reported',
-          stderr: '',
         });
 
         const result = await checker.checkConnection();
@@ -539,7 +528,7 @@ describe('ConnectivityChecker', () => {
     });
 
     it('should handle database errors when creating connection check', async () => {
-      mockExecAsync.mockResolvedValue({ stdout: 'time=15 ms', stderr: '' });
+      mockSafePing.mockResolvedValue({ stdout: 'time=15 ms' });
 
       (prisma.connectionCheck.create as jest.Mock).mockRejectedValue(
         new Error('Database write failed')

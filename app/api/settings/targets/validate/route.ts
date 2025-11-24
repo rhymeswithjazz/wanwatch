@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { z } from 'zod';
-
-const execAsync = promisify(exec);
+import { safePing, isValidIPv4 } from '@/lib/utils/shell';
 
 const ValidateSchema = z.object({
   target: z.string().min(1, 'Target is required'),
@@ -24,12 +21,24 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { target } = ValidateSchema.parse(body);
 
-    // Validate format (basic check for DNS/IP)
-    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    // Validate format using proper IP validation (checks 0-255 octets)
     const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
-    const isValidIP = ipRegex.test(target);
-    const isValidDomain = domainRegex.test(target);
+    // Detect malformed IP addresses (all digits and dots but wrong format)
+    const looksLikeMalformedIP = /^[\d.]+$/.test(target) && !isValidIPv4(target);
+
+    const isValidIP = isValidIPv4(target);
+    const isValidDomain = !isValidIP && !looksLikeMalformedIP && domainRegex.test(target);
+
+    if (looksLikeMalformedIP) {
+      return NextResponse.json(
+        {
+          valid: false,
+          error: 'Invalid IP address format. Must have exactly 4 octets (0-255) separated by dots.',
+        },
+        { status: 400 }
+      );
+    }
 
     if (!isValidIP && !isValidDomain) {
       return NextResponse.json(
@@ -41,9 +50,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Attempt to ping the target
+    // Attempt to ping the target using safe ping (prevents command injection)
     try {
-      const { stdout } = await execAsync(`ping -c 1 -W 5 ${target}`);
+      const { stdout } = await safePing(target);
 
       // Parse latency from ping output
       const match = stdout.match(/time=(\d+\.?\d*)/);
