@@ -1,15 +1,40 @@
 // Initialize database and create initial admin user if needed
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
+import 'dotenv/config';
+import { execSync } from 'child_process';
+import bcrypt from 'bcryptjs';
+import path from 'path';
 
-const prisma = new PrismaClient();
+// Dynamic import to handle both development and production paths
+async function getPrismaClient() {
+  const { PrismaClient } = await import('../prisma/generated/client');
+  const { PrismaBetterSqlite3 } = await import('@prisma/adapter-better-sqlite3');
+
+  function getDatabasePath(): string {
+    const dbUrl = process.env.DATABASE_URL || 'file:./wanwatch.db';
+    let dbPath = dbUrl.replace(/^file:/, '');
+
+    // In Docker, DATABASE_URL is typically file:/app/data/wanwatch.db (absolute)
+    // In dev, it's file:./wanwatch.db (relative to prisma folder)
+    if (dbPath.startsWith('./')) {
+      dbPath = path.join(process.cwd(), 'prisma', dbPath.substring(2));
+    }
+
+    return dbPath;
+  }
+
+  const adapter = new PrismaBetterSqlite3({ url: getDatabasePath() });
+  return new PrismaClient({ adapter });
+}
 
 async function init() {
   try {
-    // Run migrations first using globally installed prisma (not npx which may fetch incompatible versions)
+    // Run migrations first using globally installed prisma
+    // Use JavaScript config file which doesn't require TypeScript compilation
     console.log('Running database migrations...');
-    const { execSync } = require('child_process');
-    execSync('prisma migrate deploy', { stdio: 'inherit' });
+    execSync('prisma migrate deploy --config prisma.config.js', { stdio: 'inherit' });
+
+    // Get Prisma client with adapter
+    const prisma = await getPrismaClient();
 
     // Check if we need to create initial admin user
     const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
@@ -86,7 +111,6 @@ async function init() {
     await prisma.$disconnect();
   } catch (error) {
     console.error('Initialization error:', error);
-    await prisma.$disconnect();
     process.exit(1);
   }
 }

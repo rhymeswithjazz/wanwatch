@@ -1,8 +1,21 @@
 #!/usr/bin/env tsx
 
-import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
+import { PrismaClient } from '../prisma/generated/client';
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import path from 'path';
 
-const prisma = new PrismaClient();
+function getDatabasePath(): string {
+  const dbUrl = process.env.DATABASE_URL || 'file:./wanwatch.db';
+  let dbPath = dbUrl.replace(/^file:/, '');
+  if (dbPath.startsWith('./')) {
+    dbPath = path.join(process.cwd(), 'prisma', dbPath.substring(2));
+  }
+  return dbPath;
+}
+
+const adapter = new PrismaBetterSqlite3({ url: getDatabasePath() });
+const prisma = new PrismaClient({ adapter });
 
 const defaultTargets = [
   // DNS Servers (highest priority)

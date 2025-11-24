@@ -3,8 +3,11 @@ import Credentials from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { logger } from '@/lib/logger';
+import { authConfig } from './auth.config';
 
+// Full auth configuration with database access (for server components/API routes)
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       credentials: {
@@ -55,12 +58,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
     })
   ],
-  pages: {
-    signIn: '/login'
-  },
-  callbacks: {
-    authorized: async ({ auth }) => {
-      return !!auth;
-    }
-  }
 });

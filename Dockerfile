@@ -60,21 +60,31 @@ RUN if ! getent group ${PGID} >/dev/null 2>&1; then \
     GROUP_NAME=$(getent group ${PGID} | cut -d: -f1) && \
     adduser --system --uid ${PUID} --ingroup ${GROUP_NAME} nextjs
 
-# Copy Prisma schema and generated client
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Copy Prisma schema and generated client (v7 generates to prisma/generated/)
+COPY --from=builder --chown=${PUID}:${PGID} /app/prisma ./prisma
+# Copy Prisma config file (JavaScript version for Docker - no TS compilation needed)
+COPY --from=builder --chown=${PUID}:${PGID} /app/prisma.config.js ./prisma.config.js
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 # Copy effect module - required by @prisma/config (workaround for prisma/prisma#26498)
 COPY --from=builder /app/node_modules/effect ./node_modules/effect
 # Copy bcryptjs - required by init.js and marked as external in next.config.js
 COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+# Copy better-sqlite3 - native module required by Prisma v7 adapter
+COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
+COPY --from=builder /app/node_modules/@prisma/adapter-better-sqlite3 ./node_modules/@prisma/adapter-better-sqlite3
+# Copy bindings for better-sqlite3
+COPY --from=builder /app/node_modules/bindings ./node_modules/bindings
+COPY --from=builder /app/node_modules/file-uri-to-path ./node_modules/file-uri-to-path
 
-# Install Prisma CLI globally with pinned version to avoid Prisma 7 breaking changes
-# This avoids npx potentially fetching incompatible versions
-RUN npm install -g prisma@6.19.0
+# Install Prisma CLI and tsx globally (v7)
+# tsx is needed to run TypeScript init script with Prisma v7 adapter
+RUN npm install -g prisma@7 tsx
 
 # Copy scripts for admin tasks (user creation, etc.)
-COPY --from=builder /app/scripts ./scripts
+COPY --from=builder --chown=${PUID}:${PGID} /app/scripts ./scripts
+
+# Copy dotenv for init script
+COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
 
 # Copy Next.js built files
 # Use numeric IDs for chown to work with any group name
@@ -93,4 +103,5 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Start script that initializes database, creates admin user if needed, and starts app
-CMD ["sh", "-c", "node scripts/init.js && node server.js"]
+# Use tsx to run TypeScript init script with Prisma v7 adapter
+CMD ["sh", "-c", "tsx scripts/init.ts && node server.js"]
