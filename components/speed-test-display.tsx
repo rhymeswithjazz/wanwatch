@@ -10,6 +10,7 @@ import { memo, useState } from 'react';
 import useSWR, { mutate as globalMutate } from 'swr';
 import { useToast } from '@/hooks/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { fetcher } from '@/lib/fetcher';
 
 interface SpeedTestData {
   id: number;
@@ -31,12 +32,6 @@ interface SpeedTestResponse {
     pingMs: number;
   };
 }
-
-const fetcher = (url: string) =>
-  fetch(url, { credentials: 'include' }).then((res) => {
-    if (!res.ok) throw new Error('Failed to fetch');
-    return res.json();
-  });
 
 const formatSpeed = (mbps: number) => {
   return `${mbps.toFixed(2)} Mbps`;

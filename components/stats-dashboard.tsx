@@ -3,17 +3,11 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, DataTableColumnHeader } from '@/components/ui/data-table';
+import { fetcher } from '@/lib/fetcher';
 import { ChartDataPoint, LatestSpeedTest, NetworkInfo, Outage, Stats, TimePeriod } from '@/types/dashboard';
 import { ColumnDef } from '@tanstack/react-table';
 import { memo, useCallback, useState, useTransition } from 'react';
 import useSWR from 'swr';
-
-// Fetcher function for SWR
-const fetcher = (url: string) => fetch(url, { credentials: 'include' })
-  .then(res => {
-    if (!res.ok) throw new Error('Failed to fetch');
-    return res.json();
-  });
 
 // Helper function for formatting duration
 const formatDuration = (seconds: number) => {
