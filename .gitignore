@@ -38,6 +38,8 @@ next-env.d.ts
 # prisma
 prisma/*.db
 prisma/*.db-journal
+wanwatch.db
+wanwatch.db-journal
 prisma/generated/
 /data
 
