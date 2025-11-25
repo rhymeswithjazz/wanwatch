@@ -30,7 +30,6 @@ jest.mock('next/server', () => {
 import { GET } from '../route';
 
 // Mock variables - declared as let for later assignment
-let mockSession: { user?: { email?: string } } | null = null;
 let mockOutageCount: jest.Mock;
 let mockOutageFindFirst: jest.Mock;
 let mockOutageFindMany: jest.Mock;
@@ -343,7 +342,6 @@ describe('GET /api/stats', () => {
         expect.any(Number),
         expect.objectContaining({
           userId: 'test@example.com',
-          totalOutages: 5,
         })
       );
     });
@@ -357,7 +355,7 @@ describe('GET /api/stats', () => {
 
       expect(response.status).toBe(500);
       const data = await response.json();
-      expect(data).toEqual({ error: 'Failed to fetch statistics' });
+      expect(data).toEqual({ error: 'Internal server error' });
     });
 
     it('should log error request', async () => {
@@ -389,7 +387,8 @@ describe('GET /api/stats', () => {
         500,
         expect.any(Number),
         expect.objectContaining({
-          error: 'Unknown error',
+          error: 'String error',
+          userId: 'test@example.com',
         })
       );
     });

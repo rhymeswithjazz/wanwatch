@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { getErrorMessage } from '@/lib/utils';
 import { z } from 'zod';
 import { isValidIPv4 } from '@/lib/utils/shell';
+import { withAuth, withAuthRequest } from '@/lib/api-utils';
 
 const TargetSchema = z.object({
   target: z.string().min(1, 'Target is required'),
@@ -20,40 +19,37 @@ const UpdateTargetSchema = TargetSchema.partial();
  * GET /api/settings/targets
  * List all monitoring targets
  */
-export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const GET = withAuth(
+  async () => {
     const targets = await prisma.monitoringTarget.findMany({
       orderBy: { priority: 'asc' },
     });
 
     return NextResponse.json({ targets });
-  } catch (error) {
-    await logger.error('Failed to fetch monitoring targets', { error: getErrorMessage(error) });
-    return NextResponse.json(
-      { error: 'Failed to fetch targets' },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { route: '/api/settings/targets', method: 'GET' }
+);
 
 /**
  * POST /api/settings/targets
  * Create a new monitoring target
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const POST = withAuthRequest(
+  async (request: NextRequest, session) => {
     const body = await request.json();
-    const validatedData = TargetSchema.parse(body);
+
+    let validatedData: z.infer<typeof TargetSchema>;
+    try {
+      validatedData = TargetSchema.parse(body);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: 'Invalid input', details: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
 
     // Validate target format
     const target = validatedData.target;
@@ -96,37 +92,20 @@ export async function POST(request: NextRequest) {
     await logger.logSettings('target_added', validatedData.displayName, {
       target: validatedData.target,
       type: validatedData.type,
-      userEmail: session.user.email,
+      userEmail: session.user?.email,
     });
 
     return NextResponse.json({ target: newTarget }, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid input', details: error.issues },
-        { status: 400 }
-      );
-    }
-
-    await logger.error('Failed to create monitoring target', { error: getErrorMessage(error) });
-    return NextResponse.json(
-      { error: 'Failed to create target' },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { route: '/api/settings/targets', method: 'POST' }
+);
 
 /**
  * PUT /api/settings/targets
  * Update a monitoring target
  */
-export async function PUT(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const PUT = withAuthRequest(
+  async (request: NextRequest, session) => {
     const body = await request.json();
     const { id, ...updates } = body;
 
@@ -134,7 +113,18 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid target ID' }, { status: 400 });
     }
 
-    const validatedUpdates = UpdateTargetSchema.parse(updates);
+    let validatedUpdates: z.infer<typeof UpdateTargetSchema>;
+    try {
+      validatedUpdates = UpdateTargetSchema.parse(updates);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: 'Invalid input', details: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
 
     // Validate target format if being updated
     if (validatedUpdates.target) {
@@ -196,37 +186,20 @@ export async function PUT(request: NextRequest) {
     await logger.logSettings(action, existingTarget.displayName, {
       targetId: id,
       changes: validatedUpdates,
-      userEmail: session.user.email,
+      userEmail: session.user?.email,
     });
 
     return NextResponse.json({ target: updatedTarget });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid input', details: error.issues },
-        { status: 400 }
-      );
-    }
-
-    await logger.error('Failed to update monitoring target', { error: getErrorMessage(error) });
-    return NextResponse.json(
-      { error: 'Failed to update target' },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { route: '/api/settings/targets', method: 'PUT' }
+);
 
 /**
  * DELETE /api/settings/targets?id=123
  * Delete a monitoring target
  */
-export async function DELETE(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const DELETE = withAuthRequest(
+  async (request: NextRequest, session) => {
     const { searchParams } = new URL(request.url);
     const idParam = searchParams.get('id');
 
@@ -267,15 +240,10 @@ export async function DELETE(request: NextRequest) {
     await logger.logSettings('target_deleted', target.displayName, {
       targetId: id,
       target: target.target,
-      userEmail: session.user.email,
+      userEmail: session.user?.email,
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    await logger.error('Failed to delete monitoring target', { error: getErrorMessage(error) });
-    return NextResponse.json(
-      { error: 'Failed to delete target' },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { route: '/api/settings/targets', method: 'DELETE' }
+);

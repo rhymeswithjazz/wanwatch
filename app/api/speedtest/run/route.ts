@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { SpeedTester } from '@/lib/monitoring/speed-tester';
 import { logger } from '@/lib/logger';
+import { withAuth } from '@/lib/api-utils';
 
 // In-memory rate limiter - tracks last test time per user
 const lastTestTime = new Map<string, number>();
@@ -27,18 +27,10 @@ if (typeof setInterval !== 'undefined' && typeof process !== 'undefined') {
   }
 }
 
-export async function POST() {
-  const startTime = Date.now();
-
-  try {
-    const session = await auth();
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const POST = withAuth(
+  async (session) => {
     // Rate limiting check
-    const userId = session.user.email;
+    const userId = session.user!.email!;
     const now = Date.now();
     const lastTest = lastTestTime.get(userId);
 
@@ -67,9 +59,6 @@ export async function POST() {
     const speedTester = new SpeedTester();
     const result = await speedTester.runSpeedTest();
 
-    const duration = Date.now() - startTime;
-    await logger.logRequest('POST', '/api/speedtest/run', 200, duration);
-
     if (!result) {
       return NextResponse.json(
         { error: 'Speed test failed to complete' },
@@ -82,16 +71,6 @@ export async function POST() {
       result,
       message: 'Speed test completed successfully',
     });
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    await logger.error('Failed to run manual speed test', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    await logger.logRequest('POST', '/api/speedtest/run', 500, duration);
-
-    return NextResponse.json(
-      { error: 'Failed to run speed test' },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { route: '/api/speedtest/run', method: 'POST' }
+);

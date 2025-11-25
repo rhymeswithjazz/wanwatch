@@ -7,20 +7,20 @@ import { getErrorMessage } from '@/lib/utils';
 type RouteContext = { params: Promise<Record<string, string>> };
 
 /**
- * Handler function that receives the authenticated session
+ * Handler function that receives the authenticated session and request
  */
-type AuthenticatedHandler<T = unknown> = (
+type AuthenticatedHandler = (
   request: NextRequest,
   session: Session,
   context?: RouteContext
-) => Promise<NextResponse<T>>;
+) => Promise<NextResponse>;
 
 /**
  * Handler function for routes that don't need request object
  */
-type AuthenticatedGetHandler<T = unknown> = (
+type AuthenticatedGetHandler = (
   session: Session
-) => Promise<NextResponse<T>>;
+) => Promise<NextResponse>;
 
 interface WithAuthOptions {
   /** API route path for logging (e.g., '/api/stats') */
@@ -43,10 +43,10 @@ interface WithAuthOptions {
  * );
  * ```
  */
-export function withAuth<T = unknown>(
-  handler: AuthenticatedGetHandler<T>,
+export function withAuth(
+  handler: AuthenticatedGetHandler,
   options: WithAuthOptions
-): () => Promise<NextResponse<T | { error: string }>> {
+): () => Promise<NextResponse> {
   return async () => {
     const startTime = Date.now();
 
@@ -103,11 +103,11 @@ export function withAuth<T = unknown>(
  * );
  * ```
  */
-export function withAuthRequest<T = unknown>(
-  handler: AuthenticatedHandler<T>,
+export function withAuthRequest(
+  handler: AuthenticatedHandler,
   options: WithAuthOptions
-): (request: NextRequest, context?: RouteContext) => Promise<NextResponse<T | { error: string }>> {
-  return async (request: NextRequest, context?: RouteContext) => {
+): (request: NextRequest, context: RouteContext) => Promise<NextResponse> {
+  return async (request: NextRequest, context: RouteContext) => {
     const startTime = Date.now();
 
     const session = await auth();

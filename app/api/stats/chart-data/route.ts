@@ -1,13 +1,11 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { TimePeriod, ChartDataPoint } from '@/types/dashboard';
+import { withAuthRequest } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
 /**
  * Maximum number of connection checks to fetch from database
- * Prevents unbounded queries for "all" time period
- * ~6 months at 5-minute intervals = 52,560 checks
  */
 const MAX_POINTS = 50000;
 
@@ -35,7 +33,6 @@ function getCutoffTime(period: TimePeriod): Date {
       cutoff.setHours(now.getHours() - 24);
       break;
     case 'all':
-      // Get all data - set cutoff to a very old date
       cutoff.setFullYear(2000);
       break;
   }
@@ -45,34 +42,26 @@ function getCutoffTime(period: TimePeriod): Date {
 
 /**
  * Get target number of data points for each time period
- * This ensures consistent chart appearance without overwhelming the browser
  */
 function getTargetBuckets(period: TimePeriod): number {
   switch (period) {
     case '5m':
-      return 10;   // 10 bars (every 30s for 5 min)
+      return 10;
     case '15m':
-      return 30;   // 30 bars (every 30s for 15 min)
+      return 30;
     case '1h':
-      return 60;   // 60 bars (aggregate every 2 checks = 1 min per bar)
+      return 60;
     case '6h':
-      return 72;   // 72 bars (aggregate every 10 checks = 5 min per bar)
+      return 72;
     case '24h':
-      return 96;   // 96 bars (aggregate every 30 checks = 15 min per bar)
+      return 96;
     case 'all':
-      return 200;  // Max 200 bars for full history
+      return 200;
   }
 }
 
 /**
  * Server-side downsampling of connection check data
- *
- * IMPORTANT: This function preserves outage visibility by checking if ANY
- * check in a bucket was disconnected. This ensures no data loss for monitoring.
- *
- * @param data - Array of connection checks from database
- * @param maxPoints - Maximum number of data points to return
- * @returns Downsampled array with outages preserved
  */
 function downsampleData(
   data: Array<{ timestamp: Date; isConnected: boolean }>,
@@ -95,22 +84,16 @@ function downsampleData(
 
   for (let i = 0; i < data.length; i += bucketSize) {
     const bucket = data.slice(i, i + bucketSize);
-
-    // CRITICAL: If ANY check in this bucket is disconnected, show as disconnected
-    // This ensures outages are always visible in the chart
     const hasDisconnection = bucket.some(check => !check.isConnected);
-
-    // Use the middle item from the bucket as representative timestamp
     const representative = bucket[Math.floor(bucket.length / 2)];
 
-    // Skip if representative is undefined (shouldn't happen with non-empty buckets)
     if (!representative) {
       continue;
     }
 
     downsampled.push({
       timestamp: representative.timestamp,
-      isConnected: !hasDisconnection, // Show red if any disconnection in bucket
+      isConnected: !hasDisconnection,
       bucket: Math.floor(i / bucketSize),
     });
   }
@@ -118,32 +101,11 @@ function downsampleData(
   return downsampled;
 }
 
-/**
- * GET /api/stats/chart-data
- *
- * Returns aggregated connection check data for the timeline chart
- * Performs server-side filtering and downsampling to reduce bandwidth
- *
- * Query params:
- * - period: TimePeriod ('5m' | '15m' | '1h' | '6h' | '24h' | 'all')
- */
-export async function GET(request: Request) {
-  const startTime = Date.now();
-  const session = await auth();
-
-  if (!session) {
-    const duration = Date.now() - startTime;
-    await logger.logRequest('GET', '/api/stats/chart-data', 401, duration, {
-      reason: 'Unauthorized - no session'
-    });
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  try {
+export const GET = withAuthRequest(
+  async (request: NextRequest, session) => {
     const { searchParams } = new URL(request.url);
     const period = (searchParams.get('period') || '24h') as TimePeriod;
 
-    // Validate period
     const validPeriods: TimePeriod[] = ['5m', '15m', '1h', '6h', '24h', 'all'];
     if (!validPeriods.includes(period)) {
       return NextResponse.json(
@@ -155,9 +117,6 @@ export async function GET(request: Request) {
     const cutoffTime = getCutoffTime(period);
     const targetBuckets = getTargetBuckets(period);
 
-    // Fetch only relevant data from database
-    // Only select the fields we need for charting (timestamp, isConnected)
-    // Limit to MAX_POINTS to prevent unbounded queries
     const checks = await prisma.connectionCheck.findMany({
       where: {
         timestamp: { gte: cutoffTime }
@@ -170,7 +129,6 @@ export async function GET(request: Request) {
       }
     });
 
-    // Warn if we hit the limit - indicates data truncation
     if (checks.length === MAX_POINTS) {
       await logger.warn('Chart data query hit MAX_POINTS limit - data truncated', {
         period,
@@ -180,41 +138,18 @@ export async function GET(request: Request) {
       });
     }
 
-    // Perform server-side downsampling
     const chartData = downsampleData(checks, targetBuckets);
-
-    const duration = Date.now() - startTime;
-    await logger.logRequest('GET', '/api/stats/chart-data', 200, duration, {
-      userId: session.user?.email ?? undefined,
-      period,
-      originalPoints: checks.length,
-      downsampledPoints: chartData.length
-    });
 
     return NextResponse.json(
       { chartData },
       {
         headers: {
-          // Cache for 30 seconds, allow stale data for 60 seconds while revalidating
           'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
         },
       }
     );
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const duration = Date.now() - startTime;
+  },
+  { route: '/api/stats/chart-data', method: 'GET' }
+);
 
-    await logger.logRequest('GET', '/api/stats/chart-data', 500, duration, {
-      error: errorMessage,
-      userId: session.user?.email ?? undefined
-    });
-
-    return NextResponse.json(
-      { error: 'Failed to fetch chart data' },
-      { status: 500 }
-    );
-  }
-}
-
-// Force dynamic rendering - this endpoint always needs fresh data
 export const dynamic = 'force-dynamic';
