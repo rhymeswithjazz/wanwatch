@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { initializeMonitoring } from './startup'
-import { ThemeProvider } from '@/components/theme-provider'
+import { Providers } from '@/components/providers'
 import { ThemeVariantInitializer } from '@/components/theme-variant-initializer'
 import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
@@ -34,16 +34,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <Providers>
           <ThemeVariantInitializer />
           {children}
           <Toaster />
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   )
