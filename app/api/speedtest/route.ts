@@ -1,18 +1,9 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { logger } from '@/lib/logger';
+import { withAuth } from '@/lib/api-utils';
 
-export async function GET() {
-  const startTime = Date.now();
-
-  try {
-    const session = await auth();
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const GET = withAuth(
+  async () => {
     // Get latest speed test
     const latest = await prisma.speedTest.findFirst({
       orderBy: { timestamp: 'desc' },
@@ -45,9 +36,6 @@ export async function GET() {
       avgPing = history.reduce((sum, test) => sum + test.pingMs, 0) / history.length;
     }
 
-    const duration = Date.now() - startTime;
-    await logger.logRequest('GET', '/api/speedtest', 200, duration);
-
     return NextResponse.json({
       latest,
       history,
@@ -57,16 +45,6 @@ export async function GET() {
         pingMs: avgPing,
       },
     });
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    await logger.error('Failed to fetch speed test data', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    await logger.logRequest('GET', '/api/speedtest', 500, duration);
-
-    return NextResponse.json(
-      { error: 'Failed to fetch speed test data' },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { route: '/api/speedtest', method: 'GET' }
+);

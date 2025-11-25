@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { safePing, isValidIPv4 } from '@/lib/utils/shell';
+import { withAuthRequest } from '@/lib/api-utils';
 
 const ValidateSchema = z.object({
   target: z.string().min(1, 'Target is required'),
@@ -11,15 +11,23 @@ const ValidateSchema = z.object({
  * POST /api/settings/targets/validate
  * Validate a target by attempting to ping it
  */
-export async function POST(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const POST = withAuthRequest(
+  async (request: NextRequest) => {
     const body = await request.json();
-    const { target } = ValidateSchema.parse(body);
+
+    let target: string;
+    try {
+      const parsed = ValidateSchema.parse(body);
+      target = parsed.target;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: 'Invalid input', details: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
 
     // Validate format using proper IP validation (checks 0-255 octets)
     const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
@@ -67,7 +75,7 @@ export async function POST(request: Request) {
         latencyMs,
         suggestedType: type,
       });
-    } catch (pingError) {
+    } catch {
       // Target format is valid but unreachable
       return NextResponse.json({
         valid: true,
@@ -76,17 +84,6 @@ export async function POST(request: Request) {
         suggestedType: isValidIP ? 'ip' : 'domain',
       });
     }
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid input', details: error.issues },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'Validation failed' },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { route: '/api/settings/targets/validate', method: 'POST' }
+);

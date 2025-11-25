@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { logger } from '@/lib/logger';
+import { withAuthRequest } from '@/lib/api-utils';
 
 export interface LogEntry {
   id: number;
@@ -19,19 +18,8 @@ export interface LogsResponse {
   totalPages: number;
 }
 
-export async function GET(request: Request) {
-  const startTime = Date.now();
-  const session = await auth();
-
-  if (!session) {
-    const duration = Date.now() - startTime;
-    await logger.logRequest('GET', '/api/logs', 401, duration, {
-      reason: 'Unauthorized - no session'
-    });
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  try {
+export const GET = withAuthRequest(
+  async (request: NextRequest) => {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '50');
@@ -84,44 +72,13 @@ export async function GET(request: Request) {
       totalPages: Math.ceil(total / pageSize),
     };
 
-    const duration = Date.now() - startTime;
-
-    logger.debug('Logs fetched', {
-      userId: session.user?.email ?? undefined,
-      page,
-      pageSize,
-      total,
-      filters: { level, search, startDate, endDate }
-    });
-
-    await logger.logRequest('GET', '/api/logs', 200, duration, {
-      userId: session.user?.email ?? undefined,
-      page,
-      pageSize,
-      total,
-      totalPages: response.totalPages,
-      hasFilters: !!(level || search || startDate || endDate)
-    });
-
     return NextResponse.json(response, {
       headers: {
         'Cache-Control': 'private, no-cache, no-store, must-revalidate',
       },
     });
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const duration = Date.now() - startTime;
-
-    await logger.logRequest('GET', '/api/logs', 500, duration, {
-      error: errorMessage,
-      userId: session.user?.email ?? undefined
-    });
-
-    return NextResponse.json(
-      { error: 'Failed to fetch logs' },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { route: '/api/logs', method: 'GET' }
+);
 
 export const dynamic = 'force-dynamic';

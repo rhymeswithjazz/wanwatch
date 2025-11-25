@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { fetcher } from '@/lib/fetcher';
 
 type TargetType = 'dns' | 'domain' | 'ip';
 
@@ -41,8 +42,6 @@ interface ValidationResult {
   error?: string;
   warning?: string;
 }
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function TargetsManager() {
   const { data, error, mutate } = useSWR<{ targets: MonitoringTarget[] }>(

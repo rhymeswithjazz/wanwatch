@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { getErrorMessage } from '@/lib/utils';
+import { withAuth, withAuthRequest } from '@/lib/api-utils';
 import {
   getMonitoringIntervals,
   updateMonitoringIntervals,
@@ -13,13 +12,8 @@ import {
  * GET /api/settings/monitoring
  * Returns current monitoring intervals and defaults
  */
-export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const GET = withAuth(
+  async () => {
     const current = await getMonitoringIntervals();
     const defaults = getDefaultIntervals();
 
@@ -29,27 +23,16 @@ export async function GET() {
       isUsingDefaults: current.checkIntervalSeconds === defaults.checkIntervalSeconds &&
                       current.outageCheckIntervalSeconds === defaults.outageCheckIntervalSeconds
     });
-  } catch (error: unknown) {
-    const errorMessage = getErrorMessage(error);
-    await logger.error('Failed to get monitoring intervals', { error: errorMessage });
-    return NextResponse.json(
-      { error: 'Failed to get monitoring intervals' },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { route: '/api/settings/monitoring', method: 'GET' }
+);
 
 /**
  * POST /api/settings/monitoring
  * Updates monitoring intervals
  */
-export async function POST(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const POST = withAuthRequest(
+  async (request: NextRequest, session) => {
     const body = await request.json();
 
     // Handle reset to defaults
@@ -57,7 +40,7 @@ export async function POST(request: Request) {
       await resetToDefaultIntervals();
 
       await logger.info('Monitoring intervals reset to defaults', {
-        email: session.user.email
+        email: session.user?.email
       });
 
       // Trigger scheduler restart
@@ -90,7 +73,7 @@ export async function POST(request: Request) {
     await logger.info('Monitoring intervals updated', {
       checkIntervalSeconds,
       outageCheckIntervalSeconds,
-      email: session.user.email
+      email: session.user?.email
     });
 
     // Trigger scheduler restart with new intervals
@@ -102,13 +85,6 @@ export async function POST(request: Request) {
       message: 'Intervals updated successfully',
       intervals: { checkIntervalSeconds, outageCheckIntervalSeconds }
     });
-  } catch (error: unknown) {
-    const errorMessage = getErrorMessage(error);
-    await logger.error('Failed to update monitoring intervals', { error: errorMessage });
-
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 400 }
-    );
-  }
-}
+  },
+  { route: '/api/settings/monitoring', method: 'POST' }
+);
