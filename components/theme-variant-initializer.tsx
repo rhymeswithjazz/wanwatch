@@ -6,9 +6,14 @@ import { useSession } from 'next-auth/react';
 const THEME_STORAGE_KEY = 'wanwatch-theme-variant';
 
 export function ThemeVariantInitializer() {
-  const { status } = useSession();
+  // useSession may return undefined during SSR/static generation
+  const session = useSession();
+  const status = session?.status;
 
   useEffect(() => {
+    // Guard: localStorage is not available during SSR
+    if (typeof window === 'undefined') return;
+
     // Immediately apply cached theme from localStorage to prevent flash
     const cachedTheme = localStorage.getItem(THEME_STORAGE_KEY);
     if (cachedTheme) {
@@ -17,6 +22,9 @@ export function ThemeVariantInitializer() {
   }, []);
 
   useEffect(() => {
+    // Guard: not in browser or session not ready
+    if (typeof window === 'undefined') return;
+
     // Only fetch from API when authenticated
     if (status !== 'authenticated') {
       return;
