@@ -1,27 +1,55 @@
 "use client";
 
 import { useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+
+const THEME_STORAGE_KEY = 'wanwatch-theme-variant';
 
 export function ThemeVariantInitializer() {
+  // useSession may return undefined during SSR/static generation
+  const session = useSession();
+  const status = session?.status;
+
   useEffect(() => {
-    // Fetch and apply user's theme variant preference
-    const applyThemeVariant = async () => {
+    // Guard: localStorage is not available during SSR
+    if (typeof window === 'undefined') return;
+
+    // Immediately apply cached theme from localStorage to prevent flash
+    const cachedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (cachedTheme) {
+      document.documentElement.setAttribute('data-theme', cachedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Guard: not in browser or session not ready
+    if (typeof window === 'undefined') return;
+
+    // Only fetch from API when authenticated
+    if (status !== 'authenticated') {
+      return;
+    }
+
+    const fetchAndApplyTheme = async () => {
       try {
         const response = await fetch('/api/settings/theme');
         if (response.ok) {
           const data = await response.json();
           const themeVariant = data.themeVariant || 'default';
+          // Update localStorage cache
+          localStorage.setItem(THEME_STORAGE_KEY, themeVariant);
+          // Apply theme
           document.documentElement.setAttribute('data-theme', themeVariant);
         }
+        // On 401 or other errors, keep the cached theme (don't reset)
       } catch (error) {
         console.error('Error fetching theme variant:', error);
-        // Default to 'default' theme on error
-        document.documentElement.setAttribute('data-theme', 'default');
+        // Keep cached theme, don't reset to default
       }
     };
 
-    applyThemeVariant();
-  }, []);
+    fetchAndApplyTheme();
+  }, [status]);
 
   return null;
 }
