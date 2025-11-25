@@ -32,6 +32,8 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password');
       } else {
+        // Refresh to ensure session state is synced, then navigate
+        router.refresh();
         router.push('/dashboard');
       }
     } catch (error: unknown) {
