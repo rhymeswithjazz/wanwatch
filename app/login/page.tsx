@@ -2,7 +2,6 @@
 
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +14,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,9 +30,9 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password');
       } else {
-        // Refresh to ensure session state is synced, then navigate
-        router.refresh();
-        router.push('/dashboard');
+        // Use hard navigation to ensure session cookie is sent to server
+        // This avoids race conditions with client-side router and session state
+        window.location.href = '/dashboard';
       }
     } catch (error: unknown) {
       console.error('Login error:', error instanceof Error ? error.message : 'Unknown error');
