@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 
+const THEME_STORAGE_KEY = 'wanwatch-theme-variant';
+
 type ThemeVariant = 'default' | 'network-pulse' | 'signal' | 'monitor' | 'dracula';
 
 interface ThemeOption {
@@ -115,6 +117,8 @@ export function ThemeSelector() {
 
         // Apply theme immediately to the document
         document.documentElement.setAttribute('data-theme', newTheme);
+        // Update localStorage cache for persistence across auth states
+        localStorage.setItem(THEME_STORAGE_KEY, newTheme);
 
         toast({
           title: 'Theme updated',
