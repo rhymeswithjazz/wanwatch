@@ -21,6 +21,24 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized: async ({ auth }) => {
       return !!auth;
-    }
+    },
+    jwt: async ({ token, user }) => {
+      // On sign-in, add user data to token
+      if (user) {
+        token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
+      }
+      return token;
+    },
+    session: async ({ session, token }) => {
+      // Pass token data to session
+      if (token && session.user) {
+        session.user.id = token.id as string;
+        session.user.email = token.email as string;
+        session.user.name = token.name as string;
+      }
+      return session;
+    },
   }
 };

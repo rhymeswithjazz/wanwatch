@@ -1,4 +1,4 @@
-import { auth, signOut } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { Header } from '@/components/header';
 import SpeedTestDisplay from '@/components/speed-test-display';
@@ -15,16 +15,11 @@ export default async function SpeedTestPage() {
     redirect('/login');
   }
 
-  const handleSignOut = async () => {
-    'use server';
-    await signOut();
-  };
-
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
       {/* Standard Header Section */}
       <div className="mb-6">
-        <Header onSignOut={handleSignOut} />
+        <Header />
       </div>
 
       {/* Standard Page Title Section */}

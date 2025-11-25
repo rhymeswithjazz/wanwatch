@@ -33,9 +33,11 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password');
       } else {
-        // Refresh session state before navigating
-        await update();
-        router.push('/dashboard');
+        // Refresh session state and verify before navigating
+        const session = await update();
+        if (session) {
+          router.replace('/dashboard');
+        }
       }
     } catch (error: unknown) {
       console.error('Login error:', error instanceof Error ? error.message : 'Unknown error');

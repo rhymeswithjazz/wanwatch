@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { auth, signOut } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { Header } from '@/components/header';
 import { SettingsTabs } from '@/components/settings-tabs';
 import type { Metadata } from 'next';
@@ -16,15 +16,10 @@ export default async function SettingsPage() {
     redirect('/login');
   }
 
-  const handleSignOut = async () => {
-    'use server';
-    await signOut();
-  };
-
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
-        <Header onSignOut={handleSignOut} />
+        <Header />
       </div>
 
       <div className="mb-6">

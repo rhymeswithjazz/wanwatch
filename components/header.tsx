@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { LayoutDashboard, Gauge, FileText, Settings, LogOut } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
@@ -9,11 +10,10 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { NavMenu } from '@/components/nav-menu';
 import { cn } from '@/lib/utils';
 
-interface HeaderProps {
-  onSignOut: () => void;
-}
-
-export function Header({ onSignOut }: HeaderProps) {
+export function Header() {
+  const handleSignOut = () => {
+    signOut({ callbackUrl: '/login' });
+  };
   const pathname = usePathname();
 
   const navLinks = [
@@ -60,7 +60,7 @@ export function Header({ onSignOut }: HeaderProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={onSignOut}
+              onClick={handleSignOut}
               className="text-muted-foreground hover:text-destructive"
             >
               <LogOut className="h-4 w-4 mr-2" />
@@ -72,7 +72,7 @@ export function Header({ onSignOut }: HeaderProps) {
         {/* Mobile Navigation (below lg) */}
         <div className="lg:hidden flex items-center gap-2">
           <ThemeToggle />
-          <NavMenu onSignOut={onSignOut} />
+          <NavMenu onSignOut={handleSignOut} />
         </div>
       </div>
     </header>
