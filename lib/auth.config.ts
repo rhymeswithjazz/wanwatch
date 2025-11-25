@@ -16,7 +16,8 @@ export const authConfig: NextAuthConfig = {
     })
   ],
   pages: {
-    signIn: '/login'
+    signIn: '/login',
+    error: '/login',
   },
   callbacks: {
     authorized: async ({ auth }) => {
