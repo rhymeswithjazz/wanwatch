@@ -246,7 +246,7 @@ export default function LogsViewer() {
                       </div>
 
                       {/* Message */}
-                      <div className="flex-1 text-sm break-words">
+                      <div className="flex-1 text-sm wrap-break-word">
                         {log.message}
                       </div>
 
@@ -261,7 +261,7 @@ export default function LogsViewer() {
                     {/* Expanded Metadata */}
                     {isExpanded && metadata && (
                       <div className="mt-3 ml-10 p-3 bg-muted/50 rounded text-xs font-mono overflow-x-auto">
-                        <pre className="whitespace-pre-wrap break-words">
+                        <pre className="whitespace-pre-wrap wrap-break-word">
                           {JSON.stringify(metadata, null, 2)}
                         </pre>
                       </div>

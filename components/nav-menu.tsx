@@ -1,6 +1,5 @@
 'use client';
 
-import * as React from 'react';
 import { Menu, FileText, LogOut, Settings, LayoutDashboard, Gauge } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';

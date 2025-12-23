@@ -188,17 +188,17 @@ export function ThemeSelector() {
                 </p>
                 <div className="flex gap-2 mt-3">
                   <div
-                    className="w-8 h-8 rounded-md border shadow-sm"
+                    className="w-8 h-8 rounded-md border shadow-xs"
                     style={{ backgroundColor: theme.previewColors.primary }}
                     title="Primary color"
                   />
                   <div
-                    className="w-8 h-8 rounded-md border shadow-sm"
+                    className="w-8 h-8 rounded-md border shadow-xs"
                     style={{ backgroundColor: theme.previewColors.secondary }}
                     title="Secondary color"
                   />
                   <div
-                    className="w-8 h-8 rounded-md border shadow-sm"
+                    className="w-8 h-8 rounded-md border shadow-xs"
                     style={{ backgroundColor: theme.previewColors.accent }}
                     title="Accent color"
                   />

@@ -173,7 +173,7 @@ export function MonitoringIntervals() {
     <div className="space-y-6 pt-4">
         {/* Info Alert */}
         <div className="bg-muted/50 border border-border rounded-lg p-4 flex gap-3">
-          <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+          <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
           <div className="text-sm text-muted-foreground">
             <p className="font-medium text-foreground mb-1">Adaptive Monitoring</p>
             <p>
